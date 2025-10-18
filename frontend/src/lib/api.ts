@@ -1,3 +1,5 @@
+import { PoolSize } from '@/types/api';
+
 type ApiResponse<T> = {
   data?: T;
   error?: string;
@@ -72,8 +74,12 @@ class ApiClient {
     return this.request('/account/me');
   }
 
-  async getPoolSize(): Promise<ApiResponse<{ pool_size: number }>> {
-    return this.request('/datapool/size');
+  async getPoolSize(): Promise<ApiResponse<{ total: number; sizes: PoolSize }>> {
+    return this.request(`/datapool/size`);
+  }
+
+  async getDataTypes(): Promise<ApiResponse<{ types: string[] }>> {
+    return this.request('/datapool/types');
   }
 
   async getToken(): Promise<ApiResponse<{ token: string }>> {
@@ -84,19 +90,26 @@ class ApiClient {
     return this.request('/token/rotate', { method: 'POST' }, 'Token rotation failed');
   }
 
-  async purchaseData(amount: number): Promise<ApiResponse<{ data: string[] }>> {
-    return this.request(
-      '/purchase',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'bearer ' + (await this.getToken().then((res) => res.data?.token || '')),
-        },
-        body: JSON.stringify({ amount }),
-      },
-      'Purchase failed',
-    );
+  async purchaseData(
+    amount: number,
+    type: string,
+  ): Promise<ApiResponse<{ data: string[]; type: string; cost: number; credit_remaining: number }>> {
+    // Get token first
+    const tokenResponse = await this.getToken();
+    if (!tokenResponse.data?.token) {
+      return { error: 'Unable to get authentication token' };
+    }
+
+    const token = tokenResponse.data.token;
+
+    // Build query string
+    const params = new URLSearchParams({
+      amount: amount.toString(),
+      type: type,
+      token: token,
+    });
+
+    return this.request(`/purchase?${params.toString()}`, undefined, 'Purchase failed');
   }
 
   async getCredits(): Promise<ApiResponse<{ credits: number }>> {

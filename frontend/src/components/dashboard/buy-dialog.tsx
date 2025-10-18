@@ -10,16 +10,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { api } from '@/lib/api';
 
 interface BuyDialogProps {
   trigger?: React.ReactNode;
+  type: string;
 }
 
-export default function BuyDialog({ trigger }: BuyDialogProps) {
+export default function BuyDialog({ trigger, type }: BuyDialogProps) {
   const [buyQuantity, setBuyQuantity] = React.useState<number | ''>(1);
   const [boughtData, setBoughtData] = React.useState<string[]>(['1']);
+  const [apiHref, setApiHref] = React.useState<string>('/api/');
+
+  useEffect(() => {
+    setApiHref(`/api/?type=${encodeURIComponent(type)}&quantity=${encodeURIComponent(buyQuantity.toString())}`);
+  }, [buyQuantity, type]);
 
   return (
     <AlertDialog
@@ -36,9 +42,14 @@ export default function BuyDialog({ trigger }: BuyDialogProps) {
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Buy Data</AlertDialogTitle>
+          <AlertDialogTitle>Buy {type}</AlertDialogTitle>
           {boughtData.length <= 0 && (
-            <AlertDialogDescription>Buy some data directly without using the API.</AlertDialogDescription>
+            <AlertDialogDescription>
+              <span className="block">Buy some data directly using the API.</span>
+              <a href={apiHref} target="_blank">
+                {apiHref}
+              </a>
+            </AlertDialogDescription>
           )}
         </AlertDialogHeader>
         <div>
@@ -90,7 +101,7 @@ export default function BuyDialog({ trigger }: BuyDialogProps) {
                 return;
               }
 
-              const buyResult = await api.purchaseData(buyQuantity);
+              const buyResult = await api.purchaseData(buyQuantity, type);
 
               if (buyResult?.data) {
                 // Purchase successful, update stock

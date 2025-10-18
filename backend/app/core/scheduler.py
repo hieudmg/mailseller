@@ -10,14 +10,16 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 SYNC_INTERVAL_SECONDS = 5  # Sync every 5 seconds (configurable)
+TYPE_CACHE_INTERVAL_SECONDS = 10  # Refresh type cache every 10 seconds
 
 
 class BackgroundScheduler:
-    """Background tasks scheduler for credit synchronization."""
+    """Background tasks scheduler for credit synchronization and type cache refresh."""
 
     def __init__(self):
         self._running = False
         self._task = None
+        self._type_cache_task = None
 
     async def sync_all_credits_to_postgres(self):
         """
@@ -116,6 +118,31 @@ class BackgroundScheduler:
                 logger.error(f"Error during token sync: {e}", exc_info=True)
                 await db.rollback()
 
+    async def sync_type_cache(self):
+        """Refresh the type-to-storage cache from Redis and database."""
+        from app.services.type_service import TypeService
+
+        logger.info("Refreshing type cache")
+
+        async with async_session_maker() as db:
+            try:
+                await TypeService.refresh_cache(db)
+                logger.info("Type cache refreshed successfully")
+            except Exception as e:
+                logger.error(f"Error refreshing type cache: {e}", exc_info=True)
+
+    async def run_periodic_type_cache_refresh(self):
+        """Run periodic type cache refresh task."""
+        logger.info(f"Type cache refresh scheduler started. Interval: {TYPE_CACHE_INTERVAL_SECONDS}s")
+
+        while self._running:
+            try:
+                await self.sync_type_cache()
+            except Exception as e:
+                logger.error(f"Error in type cache refresh: {e}", exc_info=True)
+
+            await asyncio.sleep(TYPE_CACHE_INTERVAL_SECONDS)
+
     async def run_periodic_sync(self):
         """Run periodic sync task."""
         self._running = True
@@ -132,19 +159,32 @@ class BackgroundScheduler:
 
     async def start(self):
         """Start the background scheduler."""
+        self._running = True
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self.run_periodic_sync())
-            logger.info("Background scheduler task created")
+            logger.info("Background credit/token sync task created")
+        if self._type_cache_task is None or self._type_cache_task.done():
+            self._type_cache_task = asyncio.create_task(self.run_periodic_type_cache_refresh())
+            logger.info("Background type cache refresh task created")
 
     async def stop(self):
         """Stop the background scheduler."""
         self._running = False
+
         if self._task:
             self._task.cancel()
             try:
                 await self._task
             except asyncio.CancelledError:
                 pass
+
+        if self._type_cache_task:
+            self._type_cache_task.cancel()
+            try:
+                await self._type_cache_task
+            except asyncio.CancelledError:
+                pass
+
         logger.info("Background scheduler stopped")
 
 

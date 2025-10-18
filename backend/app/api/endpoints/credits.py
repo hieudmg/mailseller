@@ -45,10 +45,6 @@ async def get_user_from_either_auth(
     )
 
 
-class PurchaseDataRequest(BaseModel):
-    amount: int
-
-
 class CreditResponse(BaseModel):
     credits: int
 
@@ -64,17 +60,107 @@ async def get_my_credits(
 
 
 
-@router.post("/purchase")
+@router.get("/purchase")
 async def purchase_data(
-    request: PurchaseDataRequest,
-    user: User = Depends(get_user_from_token),
+    amount: int,
+    type: str,
+    token: str,
     db: AsyncSession = Depends(get_async_session)
 ):
-    """Purchase data items using credits."""
-    if request.amount <= 0:
+    """
+    Purchase data items using credits.
+
+    Args:
+        amount: Number of items to purchase (query parameter)
+        type: Data type to purchase (query parameter)
+        token: User API token (query parameter)
+        db: Database session
+
+    Returns:
+        Purchase result with data items and remaining credits
+    """
+    if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    result = await CreditService.purchase_data(user.id, request.amount, db)
+    if not type:
+        raise HTTPException(status_code=400, detail="Data type is required")
+
+    if not token:
+        raise HTTPException(status_code=400, detail="Token is required")
+
+    # Authenticate user by token
+    from app.core.redis_manager import redis_manager
+    user_id = await redis_manager.get_user_id_by_token(token)
+
+    # Determine which storage the type uses
+    from app.services.type_service import TypeService
+    storage = TypeService.get_type_storage(type)
+
+    if not storage:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Data type '{type}' not found in any storage"
+        )
+
+    try:
+        if storage == "redis":
+            result = await CreditService.purchase_data(user_id, amount, type, db)
+        else:  # db storage
+            from app.services.pool_service import PoolService
+
+            # Check credit first
+            user_credit = await redis_manager.get_user_credit(user_id)
+            cost = amount * redis_manager.CREDIT_PER_ITEM
+
+            if user_credit < cost:
+                raise HTTPException(
+                    status_code=402,
+                    detail=f"Insufficient credits. You have {user_credit} credits."
+                )
+
+            # Purchase from database
+            db_result = await PoolService.purchase_data(user_id, amount, type, db)
+
+            if db_result["status"] == "no_data":
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No data available in pool for type '{type}'"
+                )
+
+            # Deduct credits from Redis
+            new_credit = await redis_manager.client.decrby(
+                f"{redis_manager.USER_CREDIT_PREFIX}{user_id}",
+                cost
+            )
+
+            # Create transaction record
+            from app.models.user import Transaction
+            from app.core.processors.transaction_history import get_transaction_history_processor
+            from datetime import datetime
+
+            transaction = Transaction(
+                user_id=user_id,
+                amount=-cost,
+                description=f"Purchased {len(db_result['data'])} data items ({type})",
+                data_id=",".join(db_result["data"]),
+                timestamp=datetime.utcnow()
+            )
+
+            transaction_history_processor = get_transaction_history_processor()
+            transaction_history_processor.add(transaction)
+
+            result = {
+                "status": "success",
+                "data": db_result["data"],
+                "type": type,
+                "cost": cost,
+                "credit_remaining": new_credit
+            }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
 
     if result["status"] == "insufficient_credit":
         raise HTTPException(
@@ -84,12 +170,13 @@ async def purchase_data(
     elif result["status"] == "no_data":
         raise HTTPException(
             status_code=404,
-            detail="No data available in pool"
+            detail=f"No data available in pool for type '{type}'"
         )
 
     return {
         "status": "success",
         "data": result["data"],
+        "type": result["type"],
         "cost": result["cost"],
         "credit_remaining": result["credit_remaining"]
     }

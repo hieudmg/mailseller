@@ -53,6 +53,28 @@ class UserToken(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class DataPool(Base):
+    __tablename__ = "data_pool"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    data: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    sold_record = relationship("DataPoolSold", back_populates="pool_item", uselist=False)
+
+
+class DataPoolSold(Base):
+    __tablename__ = "data_pool_sold"
+
+    pool_id: Mapped[int] = mapped_column(Integer, ForeignKey("data_pool.id"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("user.id"), nullable=False, index=True)
+    sold_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    pool_item = relationship("DataPool", back_populates="sold_record")
+    user = relationship("User")
+
+
 class UserRead(schemas.BaseUser[int]):
     pass
 

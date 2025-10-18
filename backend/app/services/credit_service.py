@@ -83,14 +83,26 @@ class CreditService:
         return new_balance
 
     @staticmethod
-    async def purchase_data(user_id: int, amount: int, db: AsyncSession = None) -> dict:
+    async def purchase_data(user_id: int, amount: int, data_type: str, db: AsyncSession = None) -> dict:
         """
         Purchase data items for user.
         Returns purchase result with data items.
         Redis-first for speed, then immediately sync to PostgreSQL for durability.
+
+        Args:
+            user_id: User ID
+            amount: Number of items to purchase
+            data_type: Type of data to purchase (e.g., 'gmail', 'hotmail') - REQUIRED
+            db: Database session
+
+        Returns:
+            Purchase result dict
         """
+        if not data_type:
+            raise ValueError("Data type is required")
+
         # Atomic purchase via Lua script (credit deducted in Redis)
-        result = await redis_manager.purchase_data(user_id, amount)
+        result = await redis_manager.purchase_data(user_id, amount, data_type)
 
         # If purchase succeeded, sync to PostgreSQL immediately
         if result["status"] == "success" and db is not None:
@@ -99,7 +111,7 @@ class CreditService:
                 transaction = Transaction(
                     user_id=user_id,
                     amount=-result["cost"],  # Negative for purchase
-                    description=f"Purchased {len(result['data'])} data items",
+                    description=f"Purchased {len(result['data'])} data items ({data_type})",
                     data_id=",".join(result["data"]),
                     timestamp=datetime.utcnow()
                 )

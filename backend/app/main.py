@@ -21,8 +21,12 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     await redis_manager.connect()
     await redis_manager.load_lua_scripts()
-    await scheduler.start()
+
+    # Initialize type cache before starting scheduler
+    from app.services.type_service import TypeService
     db = async_session_maker()
+    await TypeService.refresh_cache(db)
+    await scheduler.start()
     processor = TransactionHistoryProcessor(db)
     set_transaction_history_processor(processor)
     processor_task = asyncio.create_task(processor.start())

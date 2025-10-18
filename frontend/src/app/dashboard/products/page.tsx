@@ -5,6 +5,7 @@ import { StockProvider, useStock } from '@/context/StockContext';
 import { Button } from '@/components/ui/button';
 import React from 'react';
 import BuyDialog from '@/components/dashboard/buy-dialog';
+import Link from 'next/link';
 
 function ProductsPageContent() {
   const { stock } = useStock();
@@ -22,14 +23,16 @@ function ProductsPageContent() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow>
-            <TableCell>Short Live Emails</TableCell>
-            <TableCell>1 credit / account</TableCell>
-            <TableCell>{stock}</TableCell>
-            <TableCell className="py-4 text-right">
-              <BuyDialog trigger={<Button>Buy</Button>} />
-            </TableCell>
-          </TableRow>
+          {Object.keys(stock).map((key) => (
+            <TableRow key={key}>
+              <TableCell>{key}</TableCell>
+              <TableCell>1 credit / account</TableCell>
+              <TableCell>{stock[key] ?? 0}</TableCell>
+              <TableCell className="py-4 text-right">
+                <BuyDialog type={key} trigger={<Button>Buy</Button>} />
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

@@ -12,7 +12,7 @@ class RedisManager:
 
     # Redis key prefixes
     USER_CREDIT_PREFIX = "credit:user:"
-    DATA_POOL_PREFIX = "data:pool"
+    DATA_POOL_TYPE_PREFIX = "data:pool:type:"  # Typed pool: data:pool:type:{type}
     DATA_SOLD_PREFIX = "data:sold:"
     USER_TOKEN_PREFIX = "token:user:"
     TOKEN_TO_USER_PREFIX = "token:lookup:"
@@ -47,7 +47,7 @@ class RedisManager:
             raise RuntimeError("Redis client not initialized. Call connect() first.")
         return self._client
 
-    # Lua script for atomic purchase operation
+    # Lua script for atomic purchase operation with data type support
     # Returns: {status: "success"|"insufficient_credit"|"no_data", data: [...], credit_remaining: int}
     PURCHASE_SCRIPT = """
         local user_key = KEYS[1]
@@ -104,43 +104,145 @@ class RedisManager:
         key = f"{self.USER_CREDIT_PREFIX}{user_id}"
         return await self.client.incrby(key, amount)
 
-    async def add_data_to_pool(self, data_items: list[str]) -> int:
-        """Add data items to the pool."""
+    async def add_data_to_pool(self, data_items: list[str], data_type: str, storage: str = "redis", db_session=None) -> int:
+        """
+        Add data items to the pool.
+
+        Args:
+            data_items: List of data items to add
+            data_type: Type of data (e.g., 'gmail', 'hotmail') - REQUIRED
+            storage: Storage type ('redis' or 'db')
+            db_session: Database session (required if storage='db')
+
+        Returns:
+            Number of items actually added (excludes duplicates)
+        """
         if not data_items:
             return 0
-        return await self.client.sadd(self.DATA_POOL_PREFIX, *data_items)
 
-    async def get_pool_size(self) -> int:
-        """Get number of items in data pool."""
-        return await self.client.scard(self.DATA_POOL_PREFIX)
+        if not data_type:
+            raise ValueError("Data type is required")
 
-    async def purchase_data(self, user_id: int, amount: int) -> dict:
+        if storage == "redis":
+            pool_key = f"{self.DATA_POOL_TYPE_PREFIX}{data_type}"
+            return await self.client.sadd(pool_key, *data_items)
+        elif storage == "db":
+            if db_session is None:
+                raise ValueError("Database session is required for storage='db'")
+
+            # Import here to avoid circular dependency
+            from app.models.user import DataPool
+            from sqlalchemy import select
+            from sqlalchemy.exc import IntegrityError
+
+            added_count = 0
+            for item in data_items:
+                try:
+                    # Check if item already exists
+                    result = await db_session.execute(
+                        select(DataPool).where(DataPool.data == item)
+                    )
+                    existing = result.scalar_one_or_none()
+
+                    if not existing:
+                        new_item = DataPool(type=data_type, data=item)
+                        db_session.add(new_item)
+                        added_count += 1
+                except IntegrityError:
+                    # Item already exists (race condition), skip
+                    await db_session.rollback()
+                    continue
+
+            await db_session.commit()
+            return added_count
+        else:
+            raise ValueError(f"Storage type '{storage}' not supported. Use 'redis' or 'db'.")
+
+    async def get_pool_size(self, data_type: str) -> int:
+        """
+        Get number of items in data pool.
+
+        Args:
+            data_type: Type of data - REQUIRED
+
+        Returns:
+            Number of items in the specified pool
+        """
+        if not data_type:
+            raise ValueError("Data type is required")
+
+        pool_key = f"{self.DATA_POOL_TYPE_PREFIX}{data_type}"
+        return await self.client.scard(pool_key)
+
+    async def get_all_pool_sizes(self) -> dict[str, int]:
+        """
+        Get sizes for all data type pools.
+
+        Returns:
+            Dictionary mapping data type names to their pool sizes
+        """
+        keys = await self.client.keys(f"{self.DATA_POOL_TYPE_PREFIX}*")
+        result = {}
+
+        prefix_len = len(self.DATA_POOL_TYPE_PREFIX)
+        for key in keys:
+            data_type = key[prefix_len:]
+            size = await self.client.scard(key)
+            result[data_type] = size
+
+        return result
+
+    async def get_all_data_types(self) -> list[str]:
+        """
+        Get list of all available data types.
+
+        Returns:
+            List of data type names
+        """
+        keys = await self.client.keys(f"{self.DATA_POOL_TYPE_PREFIX}*")
+        # Extract type names from keys
+        prefix_len = len(self.DATA_POOL_TYPE_PREFIX)
+        return [key[prefix_len:] for key in keys]
+
+    async def purchase_data(self, user_id: int, amount: int, data_type: str) -> dict:
         """
         Atomically purchase data items for a user.
+
+        Args:
+            user_id: User ID
+            amount: Number of items to purchase
+            data_type: Type of data to purchase (e.g., 'gmail', 'hotmail') - REQUIRED
 
         Returns:
             dict: {
                 "status": "success"|"insufficient_credit"|"no_data",
                 "data": [...],  # purchased data items
                 "credit_remaining": int,
-                "cost": int  # actual cost
+                "cost": int,  # actual cost
+                "type": str  # data type purchased
             }
         """
+        if not data_type:
+            raise ValueError("Data type is required")
+
         user_key = f"{self.USER_CREDIT_PREFIX}{user_id}"
         sold_key = f"{self.DATA_SOLD_PREFIX}{user_id}"
+        pool_key = f"{self.DATA_POOL_TYPE_PREFIX}{data_type}"
 
         result = await self.client.evalsha(
             self.purchase_script_sha,
             3,
             user_key,
-            self.DATA_POOL_PREFIX,
+            pool_key,
             sold_key,
             amount,
             self.CREDIT_PER_ITEM
         )
 
         import json
-        return json.loads(result)
+        result_data = json.loads(result)
+        result_data["type"] = data_type  # Add type to response
+        return result_data
 
     async def get_user_purchased_data(self, user_id: int) -> list[str]:
         """Get all data items purchased by a user."""

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from app.models.user import User, get_async_session
 from app.services.credit_service import CreditService
+from app.services.type_service import TypeService
 from app.core.redis_manager import redis_manager
 from app.core.config import settings
 from sqlalchemy import select
@@ -26,8 +27,10 @@ class AddCreditsRequest(BaseModel):
     description: Optional[str] = "Admin credit addition"
 
 
-class AddDataRequest(BaseModel):
-    data_items: List[str]
+class DataTypeItems(BaseModel):
+    type: str  # Data type: gmail, hotmail, etc.
+    items: List[str]  # Data items for this type
+    storage: str = "redis"  # Storage type: redis or db (only redis supported now)
 
 
 class UpdateCreditCostRequest(BaseModel):
@@ -73,21 +76,78 @@ async def add_credits(
 
 @router.post("/datapool/add")
 async def add_data_to_pool(
-    request: AddDataRequest,
-    _: str = Depends(verify_admin_token)
+    data: List[DataTypeItems],
+    _: str = Depends(verify_admin_token),
+    db: AsyncSession = Depends(get_async_session)
 ):
     """
     Add data items to the pool (admin operation).
     Requires ADMIN_TOKEN in Authorization header.
-    """
-    if not request.data_items:
-        raise HTTPException(status_code=400, detail="No data items provided")
 
-    added_count = await redis_manager.add_data_to_pool(request.data_items)
+    Args:
+        data: JSON array of {type, items, storage} objects
+
+    Returns:
+        Summary of items added per type and updated pool sizes
+
+    Example request (direct JSON array):
+        [
+            {"type": "gmail", "items": ["user1@gmail.com", "user2@gmail.com"], "storage": "redis"},
+            {"type": "hotmail", "items": ["user3@hotmail.com"], "storage": "redis"}
+        ]
+    """
+    if not data:
+        raise HTTPException(status_code=400, detail="No data provided")
+
+    results = []
+    total_added = 0
+
+    for data_group in data:
+        if not data_group.type:
+            raise HTTPException(status_code=400, detail="Data type is required for all entries")
+
+        if not data_group.items:
+            continue  # Skip empty item lists
+
+        if data_group.storage not in ["redis", "db"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Storage type '{data_group.storage}' not supported for type '{data_group.type}'. Use 'redis' or 'db'."
+            )
+
+        try:
+            # Validate that type doesn't exist in different storage
+            await TypeService.validate_type_storage(data_group.type, data_group.storage, db)
+
+            added_count = await redis_manager.add_data_to_pool(
+                data_group.items,
+                data_type=data_group.type,
+                storage=data_group.storage,
+                db_session=db if data_group.storage == "db" else None
+            )
+
+            # Get pool size based on storage type
+            if data_group.storage == "redis":
+                pool_size = await redis_manager.get_pool_size(data_group.type)
+            else:  # db
+                from app.services.pool_service import PoolService
+                pool_size = await PoolService.get_pool_size(data_group.type, db)
+
+            results.append({
+                "type": data_group.type,
+                "storage": data_group.storage,
+                "added": added_count,
+                "pool_size": pool_size
+            })
+
+            total_added += added_count
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     return {
-        "added": added_count,
-        "total_pool_size": await redis_manager.get_pool_size()
+        "total_added": total_added,
+        "results": results
     }
 
 

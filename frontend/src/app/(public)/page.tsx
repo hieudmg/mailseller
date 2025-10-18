@@ -18,16 +18,18 @@ function HomeContent() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        <TableRow>
-          <TableCell>Short Live Emails</TableCell>
-          <TableCell>1 credit / account</TableCell>
-          <TableCell>{stock}</TableCell>
-          <TableCell className="py-4 text-right">
-            <Link className="bg-primary text-accent rounded px-4 py-2" href="/dashboard/products">
-              Buy
-            </Link>
-          </TableCell>
-        </TableRow>
+        {Object.keys(stock).map((key) => (
+          <TableRow key={key}>
+            <TableCell>{key}</TableCell>
+            <TableCell>1 credit / account</TableCell>
+            <TableCell>{stock[key] ?? 0}</TableCell>
+            <TableCell className="py-4 text-right">
+              <Link className="bg-primary text-accent rounded px-4 py-2" href="/dashboard/products">
+                Buy
+              </Link>
+            </TableCell>
+          </TableRow>
+        ))}
       </TableBody>
     </Table>
   );
