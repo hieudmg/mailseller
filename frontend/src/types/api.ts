@@ -1,3 +1,8 @@
 export type PoolSize = {
-  [type: string]: number;
+  [type: string]: {
+    pool_size: number;
+    price: number;
+    name: string;
+    lifetime: string;
+  };
 };

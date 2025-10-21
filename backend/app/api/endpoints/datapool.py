@@ -1,44 +1,56 @@
+# python
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.user import User, get_async_session
-from app.services.type_service import TypeService
+from app.models.user import get_async_session
+from app.services.pool_service import PoolService
+import time
+import asyncio
 
 router = APIRouter()
 
+# Simple in-memory cache: stores {'expiry': float, 'value': dict}
+_cache = {"expiry": 0.0, "value": None}
+_cache_lock = asyncio.Lock()
+_CACHE_TTL_SECONDS = 1.0
+
 
 @router.get("/size")
-async def get_pool_size(
-    db: AsyncSession = Depends(get_async_session)
-):
+async def get_pool_size(db: AsyncSession = Depends(get_async_session)):
     """
     Get current size of data pool for all types across all storages.
 
     Returns:
         Total count and sizes for all types (storage not exposed to users)
     """
-    # Get sizes from both Redis and DB
-    all_types_with_sizes = await TypeService.get_all_types_with_sizes(db)
+    now = time.monotonic()
+    # Fast path: return cached value if still valid
+    cached = _cache.get("value")
+    if cached is not None and now < _cache["expiry"]:
+        return cached
 
-    # Extract just the pool sizes, hiding storage information
-    sizes = {type_name: info["pool_size"] for type_name, info in all_types_with_sizes.items()}
-    total = sum(sizes.values())
+    # Acquire lock to refresh cache if another coroutine is not already doing it
+    async with _cache_lock:
+        # Re-check after acquiring lock
+        now = time.monotonic()
+        if _cache.get("value") is not None and now < _cache["expiry"]:
+            return _cache["value"]
 
-    return {
-        "total": total,
-        "sizes": sizes
-    }
+        # Fetch fresh data
+        all_types_with_sizes = await PoolService.get_all_types_with_sizes(db)
+        sizes = {
+            type_name: {
+                "pool_size": info["pool_size"],
+                "price": info["config"]["price"],
+                "name": info["config"]["name"],
+                "lifetime": info["config"]["lifetime"],
+            }
+            for type_name, info in all_types_with_sizes.items()
+        }
+        total = 0
+        result = {"total": total, "sizes": sizes}
 
+        # Update cache
+        _cache["value"] = result
+        _cache["expiry"] = time.monotonic() + _CACHE_TTL_SECONDS
 
-@router.get("/types")
-async def get_data_types(
-    db: AsyncSession = Depends(get_async_session)
-):
-    """
-    Get list of all available data types.
-
-    Returns:
-        List of data type names (storage not exposed to users)
-    """
-    types_with_storage = await TypeService.get_all_types_with_storage(db)
-    # Return just the type names as a list
-    return {"types": list(types_with_storage.keys())}
+        return result

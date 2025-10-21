@@ -23,14 +23,13 @@ def verify_admin_token(credentials: HTTPAuthorizationCredentials = Security(secu
 
 class AddCreditsRequest(BaseModel):
     email: str
-    amount: int
+    amount: float
     description: Optional[str] = "Admin credit addition"
 
 
 class DataTypeItems(BaseModel):
     type: str  # Data type: gmail, hotmail, etc.
     items: List[str]  # Data items for this type
-    storage: str = "redis"  # Storage type: redis or db (only redis supported now)
 
 
 class UpdateCreditCostRequest(BaseModel):
@@ -41,7 +40,7 @@ class UpdateCreditCostRequest(BaseModel):
 async def add_credits(
     request: AddCreditsRequest,
     db: AsyncSession = Depends(get_async_session),
-    _: str = Depends(verify_admin_token)
+    _: str = Depends(verify_admin_token),
 ):
     """
     Add credits to a user account (admin operation).
@@ -51,26 +50,21 @@ async def add_credits(
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
     # get user by email
-    result = await db.execute(
-        select(User).where(User.email == request.email)
-    )
+    result = await db.execute(select(User).where(User.email == request.email))
     user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     new_balance = await CreditService.add_credits(
-        user.id,
-        request.amount,
-        request.description,
-        db
+        user.id, request.amount, request.description, db
     )
 
     return {
         "email": request.email,
         "amount_added": request.amount,
         "new_balance": new_balance,
-        "description": request.description
+        "description": request.description,
     }
 
 
@@ -78,7 +72,7 @@ async def add_credits(
 async def add_data_to_pool(
     data: List[DataTypeItems],
     _: str = Depends(verify_admin_token),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """
     Add data items to the pool (admin operation).
@@ -92,8 +86,8 @@ async def add_data_to_pool(
 
     Example request (direct JSON array):
         [
-            {"type": "gmail", "items": ["user1@gmail.com", "user2@gmail.com"], "storage": "redis"},
-            {"type": "hotmail", "items": ["user3@hotmail.com"], "storage": "redis"}
+            {"type": "gmail", "items": ["user1@gmail.com", "user2@gmail.com"]},
+            {"type": "hotmail", "items": ["user3@hotmail.com"]}
         ]
     """
     if not data:
@@ -104,79 +98,53 @@ async def add_data_to_pool(
 
     for data_group in data:
         if not data_group.type:
-            raise HTTPException(status_code=400, detail="Data type is required for all entries")
-
-        if not data_group.items:
-            continue  # Skip empty item lists
-
-        if data_group.storage not in ["redis", "db"]:
             raise HTTPException(
-                status_code=400,
-                detail=f"Storage type '{data_group.storage}' not supported for type '{data_group.type}'. Use 'redis' or 'db'."
+                status_code=400, detail="Data type is required for all entries"
             )
 
-        try:
-            # Validate that type doesn't exist in different storage
-            await TypeService.validate_type_storage(data_group.type, data_group.storage, db)
+        type_config = TypeService.get_type_config(data_group.type)
+        if not type_config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Data type '{data_group.type}' not found in configuration",
+            )
 
+        if not data_group.items:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No data items provided for type '{data_group.type}'",
+            )
+
+    for data_group in data:
+        try:
+            type_config = TypeService.get_type_config(data_group.type)
             added_count = await redis_manager.add_data_to_pool(
                 data_group.items,
                 data_type=data_group.type,
-                storage=data_group.storage,
-                db_session=db if data_group.storage == "db" else None
+                storage=type_config.get("storage"),
+                db_session=db if type_config.get("storage") == "db" else None,
             )
 
             # Get pool size based on storage type
-            if data_group.storage == "redis":
+            if type_config.get("storage") == "redis":
                 pool_size = await redis_manager.get_pool_size(data_group.type)
             else:  # db
                 from app.services.pool_service import PoolService
+
                 pool_size = await PoolService.get_pool_size(data_group.type, db)
 
-            results.append({
-                "type": data_group.type,
-                "storage": data_group.storage,
-                "added": added_count,
-                "pool_size": pool_size
-            })
+            results.append(
+                {
+                    "type": data_group.type,
+                    "storage": type_config.get("storage"),
+                    "added": added_count,
+                    "pool_size": pool_size,
+                }
+            )
 
             total_added += added_count
 
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    return {
-        "total_added": total_added,
-        "results": results
-    }
-
-
-@router.post("/datapool/config/cost")
-async def update_credit_cost(
-    request: UpdateCreditCostRequest,
-    _: str = Depends(verify_admin_token)
-):
-    """
-    Update credit cost per item (admin operation).
-    Requires ADMIN_TOKEN in Authorization header.
-    """
-    if request.cost_per_item <= 0:
-        raise HTTPException(status_code=400, detail="Cost must be positive")
-
-    redis_manager.CREDIT_PER_ITEM = request.cost_per_item
-
-    return {
-        "cost_per_item": request.cost_per_item,
-        "message": "Credit cost updated successfully"
-    }
-
-
-@router.get("/datapool/config/cost")
-async def get_credit_cost(
-    _: str = Depends(verify_admin_token)
-):
-    """
-    Get current credit cost per item (admin operation).
-    Requires ADMIN_TOKEN in Authorization header.
-    """
-    return {"cost_per_item": redis_manager.CREDIT_PER_ITEM}
+    return {"total_added": total_added, "results": results}

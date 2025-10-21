@@ -2,6 +2,7 @@ import os
 import redis.asyncio as redis
 from typing import Optional
 from app.core.config import settings
+from app.services.type_service import TypeService
 
 
 class RedisManager:
@@ -17,9 +18,6 @@ class RedisManager:
     USER_TOKEN_PREFIX = "token:user:"
     TOKEN_TO_USER_PREFIX = "token:lookup:"
 
-    # Configuration
-    CREDIT_PER_ITEM = 1  # Cost per data item (configurable by admin later)
-
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -29,9 +27,7 @@ class RedisManager:
         """Initialize Redis connection."""
         if self._client is None:
             self._client = await redis.from_url(
-                settings.REDIS_URL,
-                encoding="utf-8",
-                decode_responses=True
+                settings.REDIS_URL, encoding="utf-8", decode_responses=True
             )
 
     async def disconnect(self):
@@ -74,8 +70,12 @@ class RedisManager:
 
         -- Deduct credit
         local actual_cost = #data * cost_per_item
-        local new_credit = redis.call('DECRBY', user_key, actual_cost)
-
+        local new_credit = redis.call('INCRBYFLOAT', user_key, -actual_cost)
+        new_credit = math.floor(new_credit * 1e5 + 0.5) / 1e5
+        
+        -- save the rounded credit back
+        redis.call('SET', user_key, new_credit)
+        
         -- Mark data as sold to user
         for i, item in ipairs(data) do
             redis.call('SADD', sold_key, item)
@@ -88,23 +88,29 @@ class RedisManager:
         """Load and register Lua scripts."""
         self.purchase_script_sha = await self.client.script_load(self.PURCHASE_SCRIPT)
 
-    async def get_user_credit(self, user_id: int) -> int:
+    async def get_user_credit(self, user_id: int) -> float:
         """Get user credit from Redis."""
         key = f"{self.USER_CREDIT_PREFIX}{user_id}"
         credit = await self.client.get(key)
-        return int(credit) if credit else 0
+        return float(credit) if credit else 0
 
     async def set_user_credit(self, user_id: int, credit: int):
         """Set user credit in Redis."""
         key = f"{self.USER_CREDIT_PREFIX}{user_id}"
         await self.client.set(key, credit)
 
-    async def increment_user_credit(self, user_id: int, amount: int) -> int:
+    async def increment_user_credit(self, user_id: int, amount: float) -> float:
         """Increment user credit in Redis."""
         key = f"{self.USER_CREDIT_PREFIX}{user_id}"
-        return await self.client.incrby(key, amount)
+        return await self.client.incrbyfloat(key, amount)
 
-    async def add_data_to_pool(self, data_items: list[str], data_type: str, storage: str = "redis", db_session=None) -> int:
+    async def add_data_to_pool(
+        self,
+        data_items: list[str],
+        data_type: str,
+        storage: str = "redis",
+        db_session=None,
+    ) -> int:
         """
         Add data items to the pool.
 
@@ -156,7 +162,9 @@ class RedisManager:
             await db_session.commit()
             return added_count
         else:
-            raise ValueError(f"Storage type '{storage}' not supported. Use 'redis' or 'db'.")
+            raise ValueError(
+                f"Storage type '{storage}' not supported. Use 'redis' or 'db'."
+            )
 
     async def get_pool_size(self, data_type: str) -> int:
         """
@@ -192,18 +200,6 @@ class RedisManager:
 
         return result
 
-    async def get_all_data_types(self) -> list[str]:
-        """
-        Get list of all available data types.
-
-        Returns:
-            List of data type names
-        """
-        keys = await self.client.keys(f"{self.DATA_POOL_TYPE_PREFIX}*")
-        # Extract type names from keys
-        prefix_len = len(self.DATA_POOL_TYPE_PREFIX)
-        return [key[prefix_len:] for key in keys]
-
     async def purchase_data(self, user_id: int, amount: int, data_type: str) -> dict:
         """
         Atomically purchase data items for a user.
@@ -225,6 +221,8 @@ class RedisManager:
         if not data_type:
             raise ValueError("Data type is required")
 
+        type_config = TypeService.get_type_config(data_type)
+
         user_key = f"{self.USER_CREDIT_PREFIX}{user_id}"
         sold_key = f"{self.DATA_SOLD_PREFIX}{user_id}"
         pool_key = f"{self.DATA_POOL_TYPE_PREFIX}{data_type}"
@@ -236,10 +234,11 @@ class RedisManager:
             pool_key,
             sold_key,
             amount,
-            self.CREDIT_PER_ITEM
+            type_config.get("price"),
         )
 
         import json
+
         result_data = json.loads(result)
         result_data["type"] = data_type  # Add type to response
         return result_data

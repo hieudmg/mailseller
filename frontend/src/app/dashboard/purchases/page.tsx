@@ -85,8 +85,9 @@ export default function PurchasesPage() {
   };
 
   const formatAmount = (amount: number) => {
-    const sign = amount > 0 ? '+' : '';
-    return `${sign}${amount}`;
+    const absoluteAmount = Math.abs(amount);
+    const sign = amount > 0 ? '+' : '-';
+    return `${sign} $${absoluteAmount}`;
   };
 
   return (

@@ -47,7 +47,9 @@ class CreditService:
         await db.commit()
 
     @staticmethod
-    async def add_credits(user_id: int, amount: int, description: str, db: AsyncSession):
+    async def add_credits(
+        user_id: int, amount: float, description: str, db: AsyncSession
+    ):
         """
         Add credits to user account (top-up).
         Uses Redis INCRBY (atomic) as source of truth, then syncs to PostgreSQL.
@@ -61,7 +63,7 @@ class CreditService:
             user_id=user_id,
             amount=amount,
             description=description,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
         db.add(transaction)
 
@@ -83,7 +85,9 @@ class CreditService:
         return new_balance
 
     @staticmethod
-    async def purchase_data(user_id: int, amount: int, data_type: str, db: AsyncSession = None) -> dict:
+    async def purchase_data(
+        user_id: int, amount: int, data_type: str, db: AsyncSession = None
+    ) -> dict:
         """
         Purchase data items for user.
         Returns purchase result with data items.
@@ -113,7 +117,7 @@ class CreditService:
                     amount=-result["cost"],  # Negative for purchase
                     description=f"Purchased {len(result['data'])} data items ({data_type})",
                     data_id=",".join(result["data"]),
-                    timestamp=datetime.utcnow()
+                    timestamp=datetime.utcnow(),
                 )
 
                 transaction_history_processor = get_transaction_history_processor()
@@ -121,7 +125,10 @@ class CreditService:
             except Exception as e:
                 # Log error but don't fail purchase (already succeeded in Redis)
                 import logging
-                logging.error(f"Failed to sync purchase to PostgreSQL for user {user_id}: {e}")
+
+                logging.error(
+                    f"Failed to sync purchase to PostgreSQL for user {user_id}: {e}"
+                )
                 # Scheduler will fix credit balance, but transaction record may be lost
                 await db.rollback()
 
@@ -132,9 +139,7 @@ class CreditService:
         """Get user credits from both Redis (hot) and PostgreSQL (cold)."""
         redis_credit = await redis_manager.get_user_credit(user_id)
 
-        return {
-            "credits": redis_credit
-        }
+        return {"credits": redis_credit}
 
     @staticmethod
     async def get_transactions(user_id: int, db: AsyncSession, limit: int = 50):

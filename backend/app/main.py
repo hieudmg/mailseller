@@ -5,10 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.api import api_router, admin_router, account_router
-from app.models.user import UserRead, UserCreate, UserUpdate, async_session_maker
+from app.models.user import async_session_maker
 from app.core.processors.transaction_history import TransactionHistoryProcessor
 from app.core.processors.transaction_history import set_transaction_history_processor
-from app.users import web_auth_backend, fastapi_users
 from app.core.redis_manager import redis_manager
 from app.core.scheduler import scheduler
 
@@ -22,10 +21,7 @@ async def lifespan(app: FastAPI):
     await redis_manager.connect()
     await redis_manager.load_lua_scripts()
 
-    # Initialize type cache before starting scheduler
-    from app.services.type_service import TypeService
     db = async_session_maker()
-    await TypeService.refresh_cache(db)
     await scheduler.start()
     processor = TransactionHistoryProcessor(db)
     set_transaction_history_processor(processor)

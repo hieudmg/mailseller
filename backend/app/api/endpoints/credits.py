@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
-from typing import Optional, Union
 from app.models.user import User, UserToken, get_async_session, Transaction
 from app.services.credit_service import CreditService
 from app.users import current_active_user, get_user_from_token
@@ -12,7 +11,7 @@ from app.core.token_utils import generate_user_token
 router = APIRouter()
 
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from app.users import fastapi_users
 
 
@@ -20,52 +19,22 @@ bearer_security = HTTPBearer(auto_error=False)
 optional_cookie_user = fastapi_users.current_user(active=True, optional=True)
 
 
-async def get_user_from_either_auth(
-    request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_security),
-    cookie_user: Optional[User] = Depends(optional_cookie_user),
-    db: AsyncSession = Depends(get_async_session)
-) -> User:
-    """Try to authenticate user using either bearer token or cookie-based auth."""
-    # Try bearer token authentication first
-    if credentials:
-        try:
-            return await get_user_from_token(credentials, db)
-        except HTTPException:
-            pass
-
-    # Try cookie-based authentication
-    if cookie_user:
-        return cookie_user
-
-    # If both methods fail, raise authentication error
-    raise HTTPException(
-        status_code=401,
-        detail="Could not validate credentials. Please provide either a valid bearer token or valid session cookie."
-    )
-
-
 class CreditResponse(BaseModel):
-    credits: int
+    credits: float
 
 
 @router.get("/credits", response_model=CreditResponse)
 async def get_my_credits(
     user: User = Depends(get_user_from_token),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Get current user's credit information."""
     return await CreditService.get_user_credits(user.id, db)
 
 
-
-
 @router.get("/purchase")
 async def purchase_data(
-    amount: int,
-    type: str,
-    token: str,
-    db: AsyncSession = Depends(get_async_session)
+    amount: int, type: str, token: str, db: AsyncSession = Depends(get_async_session)
 ):
     """
     Purchase data items using credits.
@@ -82,6 +51,11 @@ async def purchase_data(
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
+    if amount > 100:
+        raise HTTPException(
+            status_code=400, detail="Amount exceeds maximum limit of 100"
+        )
+
     if not type:
         raise HTTPException(status_code=400, detail="Data type is required")
 
@@ -90,16 +64,19 @@ async def purchase_data(
 
     # Authenticate user by token
     from app.core.redis_manager import redis_manager
+
     user_id = await redis_manager.get_user_id_by_token(token)
 
     # Determine which storage the type uses
     from app.services.type_service import TypeService
-    storage = TypeService.get_type_storage(type)
+
+    type_config = TypeService.get_type_config(type)
+
+    storage = type_config.get("storage")
 
     if not storage:
         raise HTTPException(
-            status_code=404,
-            detail=f"Data type '{type}' not found in any storage"
+            status_code=404, detail=f"Data type '{type}' not found in any storage"
         )
 
     try:
@@ -110,12 +87,15 @@ async def purchase_data(
 
             # Check credit first
             user_credit = await redis_manager.get_user_credit(user_id)
-            cost = amount * redis_manager.CREDIT_PER_ITEM
+            cost: float = amount * type_config.get("price")
+
+            # round cost to 5 decimal places
+            cost = round(cost, 5)
 
             if user_credit < cost:
                 raise HTTPException(
                     status_code=402,
-                    detail=f"Insufficient credits. You have {user_credit} credits."
+                    detail=f"Insufficient credits. You have {user_credit} credits.",
                 )
 
             # Purchase from database
@@ -124,18 +104,19 @@ async def purchase_data(
             if db_result["status"] == "no_data":
                 raise HTTPException(
                     status_code=404,
-                    detail=f"No data available in pool for type '{type}'"
+                    detail=f"No data available in pool for type '{type}'",
                 )
 
             # Deduct credits from Redis
-            new_credit = await redis_manager.client.decrby(
-                f"{redis_manager.USER_CREDIT_PREFIX}{user_id}",
-                cost
+            new_credit = await redis_manager.client.incrbyfloat(
+                f"{redis_manager.USER_CREDIT_PREFIX}{user_id}", -cost
             )
 
             # Create transaction record
             from app.models.user import Transaction
-            from app.core.processors.transaction_history import get_transaction_history_processor
+            from app.core.processors.transaction_history import (
+                get_transaction_history_processor,
+            )
             from datetime import datetime
 
             transaction = Transaction(
@@ -143,7 +124,7 @@ async def purchase_data(
                 amount=-cost,
                 description=f"Purchased {len(db_result['data'])} data items ({type})",
                 data_id=",".join(db_result["data"]),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
             transaction_history_processor = get_transaction_history_processor()
@@ -154,7 +135,7 @@ async def purchase_data(
                 "data": db_result["data"],
                 "type": type,
                 "cost": cost,
-                "credit_remaining": new_credit
+                "credit_remaining": new_credit,
             }
 
     except ValueError as e:
@@ -165,12 +146,11 @@ async def purchase_data(
     if result["status"] == "insufficient_credit":
         raise HTTPException(
             status_code=402,
-            detail=f"Insufficient credits. You have {result['credit_remaining']} credits."
+            detail=f"Insufficient credits. You have {result['credit_remaining']} credits.",
         )
     elif result["status"] == "no_data":
         raise HTTPException(
-            status_code=404,
-            detail=f"No data available in pool for type '{type}'"
+            status_code=404, detail=f"No data available in pool for type '{type}'"
         )
 
     return {
@@ -178,9 +158,8 @@ async def purchase_data(
         "data": result["data"],
         "type": result["type"],
         "cost": result["cost"],
-        "credit_remaining": result["credit_remaining"]
+        "credit_remaining": result["credit_remaining"],
     }
-
 
 
 @router.get("/transactions")
@@ -188,8 +167,8 @@ async def get_my_transactions(
     request: Request,
     page: int = 1,
     limit: int = 20,
-    user: User = Depends(get_user_from_either_auth),
-    db: AsyncSession = Depends(get_async_session)
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Get current user's transaction history with pagination. Supports both bearer token and cookie authentication."""
     # Validate limit
@@ -201,6 +180,7 @@ async def get_my_transactions(
 
     # Get total count
     from sqlalchemy import func
+
     total_result = await db.execute(
         func.count().select().where(Transaction.user_id == user.id)
     )
@@ -226,21 +206,20 @@ async def get_my_transactions(
                 "amount": t.amount,
                 "description": t.description,
                 "data_id": t.data_id,
-                "timestamp": t.timestamp.isoformat()
-            } for t in transactions
-        ]
+                "timestamp": t.timestamp.isoformat(),
+            }
+            for t in transactions
+        ],
     }
 
 
 @router.get("/token")
 async def get_my_token(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Get current user's API token (cookie auth)."""
-    result = await db.execute(
-        select(UserToken).where(UserToken.user_id == user.id)
-    )
+    result = await db.execute(select(UserToken).where(UserToken.user_id == user.id))
     user_token = result.scalar_one_or_none()
 
     if user_token is None:
@@ -250,20 +229,18 @@ async def get_my_token(
         "user_id": user.id,
         "token": user_token.token,
         "created_at": user_token.created_at.isoformat(),
-        "updated_at": user_token.updated_at.isoformat()
+        "updated_at": user_token.updated_at.isoformat(),
     }
 
 
 @router.post("/token/rotate")
 async def rotate_my_token(
     user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_session),
 ):
     """Rotate current user's API token (cookie auth). Generates a new token and invalidates the old one. Creates a new token if none exists."""
     # Get existing token
-    result = await db.execute(
-        select(UserToken).where(UserToken.user_id == user.id)
-    )
+    result = await db.execute(select(UserToken).where(UserToken.user_id == user.id))
     user_token = result.scalar_one_or_none()
 
     # Generate new token
@@ -284,7 +261,7 @@ async def rotate_my_token(
             "token": new_token,
             "created_at": user_token.created_at.isoformat(),
             "updated_at": user_token.updated_at.isoformat(),
-            "message": "Token created successfully."
+            "message": "Token created successfully.",
         }
 
     # Delete old token from Redis
@@ -305,5 +282,5 @@ async def rotate_my_token(
         "token": new_token,
         "created_at": user_token.created_at.isoformat(),
         "updated_at": user_token.updated_at.isoformat(),
-        "message": "Token rotated successfully. Old token is now invalid."
+        "message": "Token rotated successfully. Old token is now invalid.",
     }
