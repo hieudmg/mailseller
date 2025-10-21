@@ -5,7 +5,7 @@ function Credits() {
 
   return (
     <span>
-      <strong className="text-primary">{credits}</strong> credits
+      <strong className="text-primary">${credits}</strong>
     </span>
   );
 }
