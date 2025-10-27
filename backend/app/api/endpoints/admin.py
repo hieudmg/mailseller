@@ -36,6 +36,11 @@ class UpdateCreditCostRequest(BaseModel):
     cost_per_item: int
 
 
+class SetDiscountRequest(BaseModel):
+    email: str
+    discount: Optional[float] = None  # None to clear, 0.0-1.0 to set
+
+
 @router.post("/credits/add")
 async def add_credits(
     request: AddCreditsRequest,
@@ -60,10 +65,16 @@ async def add_credits(
         user.id, request.amount, request.description, db
     )
 
+    # Recalculate and cache discount after adding credits
+    from app.services.discount_service import DiscountService
+
+    new_discount = await DiscountService.recalculate_and_cache_discount(user.id, db)
+
     return {
         "email": request.email,
         "amount_added": request.amount,
         "new_balance": new_balance,
+        "new_discount": new_discount,
         "description": request.description,
     }
 
@@ -148,3 +159,64 @@ async def add_data_to_pool(
             raise HTTPException(status_code=400, detail=str(e))
 
     return {"total_added": total_added, "results": results}
+
+
+@router.post("/discount/set")
+async def set_custom_discount(
+    request: SetDiscountRequest,
+    db: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_admin_token),
+):
+    """
+    Set or clear custom discount for user (admin operation).
+    Requires ADMIN_TOKEN in Authorization header.
+
+    Custom discount overrides tier-based discount when set.
+
+    Args:
+        email: User email
+        discount: Discount value (0.0-1.0, e.g., 0.15 = 15% off) or null to clear
+
+    Examples:
+        - Set 15% discount: {"email": "user@example.com", "discount": 0.15}
+        - Clear discount: {"email": "user@example.com", "discount": null}
+    """
+    # Validate discount value
+    if request.discount is not None:
+        if request.discount < 0.0 or request.discount > 1.0:
+            raise HTTPException(
+                status_code=400,
+                detail="Discount must be between 0.0 and 1.0 (e.g., 0.15 = 15% off)",
+            )
+
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update custom discount (can be set or cleared to None)
+    user.custom_discount = request.discount
+    await db.commit()
+
+    # Recalculate and cache discount
+    from app.services.discount_service import DiscountService
+
+    new_discount = await DiscountService.recalculate_and_cache_discount(user.id, db)
+
+    # Get tier info for response
+    tier_info = await DiscountService.calculate_user_tier(user.id, db)
+
+    return {
+        "status": "success",
+        "email": request.email,
+        "custom_discount": user.custom_discount,
+        "final_discount": new_discount,
+        "tier_info": tier_info,
+        "message": (
+            f"Custom discount set to {user.custom_discount * 100}%"
+            if request.discount is not None
+            else "Custom discount cleared, using tier-based discount"
+        ),
+    }

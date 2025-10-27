@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "openapi": {
+      "command": "uvx",
+      "args": ["awslabs.openapi-mcp-server@latest"],
+      "env": {
+        "API_NAME": "mailseller",
+        "API_BASE_URL": "http://127.0.0.1:8000",
+        "API_SPEC_URL": "http://127.0.0.1:8000/api/openapi.json",
+        "LOG_LEVEL": "ERROR",
+        "ENABLE_PROMETHEUS": "false",
+        "ENABLE_OPERATION_PROMPTS": "true",
+        "UVICORN_TIMEOUT_GRACEFUL_SHUTDOWN": "5.0",
+        "UVICORN_GRACEFUL_SHUTDOWN": "true"
+      }
+    }
+  }
+}

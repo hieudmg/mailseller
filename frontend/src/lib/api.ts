@@ -119,6 +119,40 @@ class ApiClient {
       },
     });
   }
+
+  async getTier(): Promise<
+    ApiResponse<{
+      tier_code: string;
+      tier_name: string;
+      tier_discount: number;
+      deposit_amount: number;
+      next_tier: {
+        tier_code: string;
+        tier_name: string;
+        tier_discount: number;
+        required_deposit: number;
+        remaining: number;
+      } | null;
+      custom_discount: number | null;
+      final_discount: number;
+      discount_source: 'custom' | 'tier';
+    }>
+  > {
+    return this.request('/tier');
+  }
+
+  async getTiers(): Promise<
+    ApiResponse<{
+      tiers: Array<{
+        code: string;
+        name: string;
+        discount: number;
+        threshold: number;
+      }>;
+    }>
+  > {
+    return this.request('/tiers');
+  }
 }
 
 export const api = new ApiClient();

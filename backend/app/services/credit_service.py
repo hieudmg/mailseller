@@ -86,7 +86,11 @@ class CreditService:
 
     @staticmethod
     async def purchase_data(
-        user_id: int, amount: int, data_type: str, db: AsyncSession = None
+        user_id: int,
+        amount: int,
+        data_type: str,
+        db: AsyncSession = None,
+        discount: float = 0.0,
     ) -> dict:
         """
         Purchase data items for user.
@@ -98,6 +102,7 @@ class CreditService:
             amount: Number of items to purchase
             data_type: Type of data to purchase (e.g., 'gmail', 'hotmail') - REQUIRED
             db: Database session
+            discount: Discount to apply (0.0-1.0, e.g., 0.15 = 15% off)
 
         Returns:
             Purchase result dict
@@ -105,8 +110,8 @@ class CreditService:
         if not data_type:
             raise ValueError("Data type is required")
 
-        # Atomic purchase via Lua script (credit deducted in Redis)
-        result = await redis_manager.purchase_data(user_id, amount, data_type)
+        # Atomic purchase via Lua script (credit deducted in Redis with discount applied)
+        result = await redis_manager.purchase_data(user_id, amount, data_type, discount)
 
         # If purchase succeeded, sync to PostgreSQL immediately
         if result["status"] == "success" and db is not None:

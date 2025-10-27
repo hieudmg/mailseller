@@ -1,8 +1,40 @@
+'use client';
+
+import { TransactionLayout, formatDate, type Transaction } from '@/components/transaction-layout';
+
 export default function PaymentsPage() {
+  const formatAmount = (amount: number) => {
+    return `+ $${Math.abs(amount).toFixed(2)}`;
+  };
+
+  const columns = [
+    {
+      header: 'Date',
+      render: (transaction: Transaction) => <span className="font-mono text-sm">{formatDate(transaction.timestamp)}</span>,
+    },
+    {
+      header: 'Description',
+      render: (transaction: Transaction) => <span>{transaction.description}</span>,
+    },
+    {
+      header: 'Amount',
+      className: 'text-right',
+      render: (transaction: Transaction) => (
+        <span className="font-semibold text-green-500">{formatAmount(transaction.amount)}</span>
+      ),
+    },
+  ];
+
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Your Payments</h1>
-      <p className="text-muted-foreground">View your payment history here.</p>
-    </div>
+    <TransactionLayout
+      title="Credit Deposits"
+      description="View all your credit deposits and top-ups."
+      cardTitle="Recent Deposits"
+      transactionType="credit"
+      columns={columns}
+      emptyMessage="No credit deposits found."
+      emptySubtext="Your deposit history will appear here when you add credits."
+      errorMessage="Failed to fetch credit deposits"
+    />
   );
 }

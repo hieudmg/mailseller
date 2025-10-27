@@ -23,6 +23,7 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     updated_at = Column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    custom_discount: Mapped[float] = mapped_column(Float, nullable=True, default=None)
 
     credit = relationship("UserCredit", back_populates="user", uselist=False)
     transactions = relationship("Transaction", back_populates="user")

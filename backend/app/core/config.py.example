@@ -13,6 +13,13 @@ class DataType(TypedDict):
     price: float
 
 
+class Rank(TypedDict):
+    weekly_credit: float
+    discount: float
+    name: str
+    code: str
+
+
 class Settings(BaseSettings):
     load_dotenv()
 
@@ -63,6 +70,39 @@ class Settings(BaseSettings):
             "lifetime": "long",
             "storage": "db",
             "price": 0.05,
+        },
+    }
+
+    RANKS: dict[str, Rank] = {
+        "iron": {
+            "weekly_credit": 50.0,
+            "discount": 0.0,
+            "name": "Iron",
+            "code": "iron",
+        },
+        "bronze": {
+            "weekly_credit": 150.0,
+            "discount": 0.05,
+            "name": "Bronze",
+            "code": "bronze",
+        },
+        "silver": {
+            "weekly_credit": 400.0,
+            "discount": 0.1,
+            "name": "Silver",
+            "code": "silver",
+        },
+        "gold": {
+            "weekly_credit": 1000.0,
+            "discount": 0.15,
+            "name": "Gold",
+            "code": "gold",
+        },
+        "diamond": {
+            "weekly_credit": 2500.0,
+            "discount": 0.2,
+            "name": "Diamond",
+            "code": "diamond",
         },
     }
 

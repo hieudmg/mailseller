@@ -79,18 +79,23 @@ async def purchase_data(
             status_code=404, detail=f"Data type '{type}' not found in any storage"
         )
 
+    # Get user discount (cached in Redis, fast)
+    from app.services.discount_service import DiscountService
+
+    discount = await DiscountService.get_user_discount(user_id, db)
+
     try:
         if storage == "redis":
-            result = await CreditService.purchase_data(user_id, amount, type, db)
+            result = await CreditService.purchase_data(user_id, amount, type, db, discount)
         else:  # db storage
             from app.services.pool_service import PoolService
 
             # Check credit first
             user_credit = await redis_manager.get_user_credit(user_id)
-            cost: float = amount * type_config.get("price")
+            base_cost: float = amount * type_config.get("price")
 
-            # round cost to 5 decimal places
-            cost = round(cost, 5)
+            # Apply discount
+            cost = DiscountService.apply_discount(base_cost, discount)
 
             if user_credit < cost:
                 raise HTTPException(
@@ -167,10 +172,23 @@ async def get_my_transactions(
     request: Request,
     page: int = 1,
     limit: int = 20,
+    type: str = None,  # 'credit' for deposits, 'purchase' for purchases, None for all
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """Get current user's transaction history with pagination. Supports both bearer token and cookie authentication."""
+    """
+    Get current user's transaction history with pagination and optional filtering.
+
+    Query Parameters:
+        - page: Page number (default: 1)
+        - limit: Items per page - 20, 50, or 100 (default: 20)
+        - type: Filter by transaction type (optional)
+            - 'credit' or 'deposit': Only credit deposits (positive amounts)
+            - 'purchase': Only purchases (negative amounts)
+            - None: All transactions
+
+    Supports both bearer token and cookie authentication.
+    """
     # Validate limit
     if limit not in [20, 50, 100]:
         limit = 20
@@ -178,18 +196,36 @@ async def get_my_transactions(
         page = 1
     offset = (page - 1) * limit
 
-    # Get total count
+    # Validate type parameter
+    if type and type not in ['credit', 'deposit', 'purchase']:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid type parameter. Must be 'credit', 'deposit', or 'purchase'"
+        )
+
+    # Build base query
     from sqlalchemy import func
 
-    total_result = await db.execute(
-        func.count().select().where(Transaction.user_id == user.id)
-    )
+    base_query = select(Transaction).where(Transaction.user_id == user.id)
+    count_query = select(func.count()).select_from(Transaction).where(Transaction.user_id == user.id)
+
+    # Apply type filter
+    if type in ['credit', 'deposit']:
+        # Credit deposits have positive amounts
+        base_query = base_query.where(Transaction.amount > 0)
+        count_query = count_query.where(Transaction.amount > 0)
+    elif type == 'purchase':
+        # Purchases have negative amounts
+        base_query = base_query.where(Transaction.amount < 0)
+        count_query = count_query.where(Transaction.amount < 0)
+
+    # Get total count with filter applied
+    total_result = await db.execute(count_query)
     total = total_result.scalar() if total_result else 0
 
     # Get paginated transactions
     result = await db.execute(
-        select(Transaction)
-        .where(Transaction.user_id == user.id)
+        base_query
         .order_by(Transaction.timestamp.desc())
         .offset(offset)
         .limit(limit)
@@ -200,6 +236,7 @@ async def get_my_transactions(
         "page": page,
         "limit": limit,
         "total": total,
+        "type_filter": type,
         "transactions": [
             {
                 "id": t.id,
@@ -207,6 +244,7 @@ async def get_my_transactions(
                 "description": t.description,
                 "data_id": t.data_id,
                 "timestamp": t.timestamp.isoformat(),
+                "type": "credit" if t.amount > 0 else "purchase",
             }
             for t in transactions
         ],
@@ -283,4 +321,64 @@ async def rotate_my_token(
         "created_at": user_token.created_at.isoformat(),
         "updated_at": user_token.updated_at.isoformat(),
         "message": "Token rotated successfully. Old token is now invalid.",
+    }
+
+
+@router.get("/tiers")
+async def get_all_tiers():
+    """
+    Get list of all available discount tiers.
+    Returns all tiers with their thresholds and discounts.
+    """
+    from app.core.config import settings
+
+    # Sort tiers by threshold
+    tiers_sorted = sorted(
+        settings.RANKS.items(), key=lambda x: x[1]["weekly_credit"]
+    )
+
+    return {
+        "tiers": [
+            {
+                "code": tier_code,
+                "name": tier_info["name"],
+                "discount": tier_info["discount"],
+                "threshold": tier_info["weekly_credit"],
+            }
+            for tier_code, tier_info in tiers_sorted
+        ]
+    }
+
+
+@router.get("/tier")
+async def get_my_tier(
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get current user's discount tier based on last 7 days deposits.
+    Returns tier information, deposit amount, and final discount.
+    """
+    from app.services.discount_service import DiscountService
+
+    # Calculate tier based on 7-day deposits
+    tier_info = await DiscountService.calculate_user_tier(user.id, db)
+
+    # Get custom discount if set
+    custom_discount = user.custom_discount
+
+    # Determine final discount (custom overrides tier)
+    final_discount = (
+        custom_discount if custom_discount is not None else tier_info["tier_discount"]
+    )
+
+    return {
+        "tier_code": tier_info["tier_code"],
+        "tier_name": tier_info["tier_name"],
+        "tier_discount": tier_info["tier_discount"],
+        "deposit_amount": tier_info["deposit_amount"],
+        "next_tier": tier_info["next_tier"],
+        "custom_discount": custom_discount,
+        "final_discount": final_discount,
+        "discount_source": "custom" if custom_discount is not None else "tier",
     }

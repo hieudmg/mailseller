@@ -1,8 +1,178 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useCredits } from '@/context/CreditsContext';
+import { api } from '@/lib/api';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+
+const TIER_COLORS: Record<string, string> = {
+  iron: 'bg-gray-400',
+  bronze: 'bg-amber-600',
+  silver: 'bg-gray-300',
+  gold: 'bg-yellow-500',
+  diamond: 'bg-blue-400',
+};
+
+type Tier = {
+  code: string;
+  name: string;
+  discount: number;
+  threshold: number;
+};
+
 export default function RankingPage() {
+  const { tierData, loading } = useCredits();
+  const [tiers, setTiers] = useState<Tier[]>([]);
+  const [tiersLoading, setTiersLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTiers = async () => {
+      const response = await api.getTiers();
+      if (response.data?.tiers) {
+        setTiers(response.data.tiers);
+      }
+      setTiersLoading(false);
+    };
+
+    fetchTiers();
+  }, []);
+
+  if (loading || tiersLoading) {
+    return (
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <h1 className="text-2xl font-bold">Your Ranking</h1>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!tierData || tiers.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        <h1 className="text-2xl font-bold">Your Ranking</h1>
+        <p className="text-muted-foreground">Unable to load tier information.</p>
+      </div>
+    );
+  }
+
+  const progressToNextTier = tierData.next_tier
+    ? (tierData.deposit_amount / tierData.next_tier.required_deposit) * 100
+    : 100;
+
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Your Ranking</h1>
-      <p className="text-muted-foreground">View your ranking and statistics here.</p>
+    <div className="flex flex-1 flex-col gap-6 p-4">
+      <div>
+        <h1 className="text-2xl font-bold">Your Ranking</h1>
+        <p className="text-muted-foreground">Based on your deposits from the last 7 days</p>
+      </div>
+
+      {/* Current Tier Card */}
+      <Card className="border-2">
+        <CardHeader>
+          <CardTitle>Current Tier</CardTitle>
+          <CardDescription>Your discount tier is determined by deposits from the last 7 days</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-3xl font-bold">{tierData.tier_name}</div>
+              <div className="text-muted-foreground mt-1 text-sm">
+                ${tierData.deposit_amount.toFixed(2)} deposited in last 7 days
+              </div>
+            </div>
+            <Badge
+              variant="secondary"
+              className={`px-4 py-2 text-lg ${TIER_COLORS[tierData.tier_code] || 'bg-gray-400'} text-white`}
+            >
+              {tierData.final_discount * 100}% OFF
+            </Badge>
+          </div>
+
+          {tierData.custom_discount !== null && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">🎁 Custom Discount Active</p>
+              <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                You have a custom {tierData.custom_discount * 100}% discount applied by an admin
+              </p>
+            </div>
+          )}
+
+          {tierData.next_tier && (
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Progress to {tierData.next_tier.tier_name}</span>
+                <span className="font-medium">
+                  ${tierData.deposit_amount.toFixed(2)} / ${tierData.next_tier.required_deposit.toFixed(2)}
+                </span>
+              </div>
+              <Progress value={progressToNextTier} className="h-2" />
+              <p className="text-muted-foreground text-xs">
+                ${tierData.next_tier.remaining.toFixed(2)} more to unlock {tierData.next_tier.tier_discount * 100}%
+                discount
+              </p>
+            </div>
+          )}
+
+          {!tierData.next_tier && (
+            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
+              <p className="text-sm font-medium text-green-900 dark:text-green-100">🏆 Maximum Tier Reached!</p>
+              <p className="mt-1 text-xs text-green-700 dark:text-green-300">
+                You have reached the highest tier available
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* All Tiers Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Tiers</CardTitle>
+          <CardDescription>Deposit more in the next 7 days to unlock better discounts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {tiers.map((tier) => {
+              const isCurrentTier = tier.code === tierData.tier_code;
+              return (
+                <div
+                  key={tier.code}
+                  className={`flex items-center justify-between rounded-lg border-2 p-4 transition-all ${
+                    isCurrentTier
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`h-12 w-12 rounded-full ${TIER_COLORS[tier.code] || 'bg-gray-400'} flex items-center justify-center font-bold text-white`}
+                    >
+                      {tier.name.charAt(0)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 font-semibold">
+                        {tier.name}
+                        {isCurrentTier && (
+                          <Badge variant="default" className="text-xs">
+                            Current
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-muted-foreground text-sm">${tier.threshold.toFixed(2)}+ in 7 days</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">{tier.discount * 100}%</div>
+                    <div className="text-muted-foreground text-xs">discount</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -52,9 +52,13 @@ class RedisManager:
 
         local amount = tonumber(ARGV[1])
         local cost_per_item = tonumber(ARGV[2])
+        local discount = tonumber(ARGV[3]) or 0
+
+        -- Apply discount to cost per item
+        local discounted_cost_per_item = cost_per_item * (1 - discount)
 
         local user_credit = tonumber(redis.call('GET', user_key) or 0)
-        local total_cost = amount * cost_per_item
+        local total_cost = amount * discounted_cost_per_item
 
         -- Check if user has enough credit
         if user_credit < total_cost then
@@ -68,14 +72,14 @@ class RedisManager:
             return cjson.encode({status="no_data", credit_remaining=user_credit})
         end
 
-        -- Deduct credit
-        local actual_cost = #data * cost_per_item
+        -- Deduct credit with discounted cost
+        local actual_cost = #data * discounted_cost_per_item
         local new_credit = redis.call('INCRBYFLOAT', user_key, -actual_cost)
         new_credit = math.floor(new_credit * 1e5 + 0.5) / 1e5
-        
+
         -- save the rounded credit back
         redis.call('SET', user_key, new_credit)
-        
+
         -- Mark data as sold to user
         for i, item in ipairs(data) do
             redis.call('SADD', sold_key, item)
@@ -200,7 +204,9 @@ class RedisManager:
 
         return result
 
-    async def purchase_data(self, user_id: int, amount: int, data_type: str) -> dict:
+    async def purchase_data(
+        self, user_id: int, amount: int, data_type: str, discount: float = 0.0
+    ) -> dict:
         """
         Atomically purchase data items for a user.
 
@@ -208,13 +214,14 @@ class RedisManager:
             user_id: User ID
             amount: Number of items to purchase
             data_type: Type of data to purchase (e.g., 'gmail', 'hotmail') - REQUIRED
+            discount: Discount to apply (0.0-1.0, e.g., 0.15 = 15% off)
 
         Returns:
             dict: {
                 "status": "success"|"insufficient_credit"|"no_data",
                 "data": [...],  # purchased data items
                 "credit_remaining": int,
-                "cost": int,  # actual cost
+                "cost": int,  # actual cost (after discount)
                 "type": str  # data type purchased
             }
         """
@@ -235,6 +242,7 @@ class RedisManager:
             sold_key,
             amount,
             type_config.get("price"),
+            discount,
         )
 
         import json
