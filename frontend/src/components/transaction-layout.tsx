@@ -8,21 +8,8 @@ import { toast } from 'sonner';
 import { RefreshCw } from 'lucide-react';
 import { Paginate } from '@/components/paginate';
 import throttle from 'lodash/throttle';
-
-export interface Transaction {
-  id: number;
-  amount: number;
-  description: string;
-  data_id: string | null;
-  timestamp: string;
-}
-
-interface TransactionsResponse {
-  page: number | undefined;
-  limit: number | undefined;
-  total: number | undefined;
-  transactions: Transaction[] | undefined;
-}
+import { api } from '@/lib/api';
+import { Transaction, TransactionsResponse } from '@/types/api';
 
 interface ColumnConfig {
   header: string;
@@ -34,7 +21,7 @@ interface TransactionLayoutProps {
   title: string;
   description: string;
   cardTitle: string;
-  transactionType: 'purchase' | 'credit';
+  transactionType: 'purchase' | 'admin_deposit' | 'heleket';
   columns: ColumnConfig[];
   emptyMessage: string;
   emptySubtext: string;
@@ -70,15 +57,8 @@ export function TransactionLayout({
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/transactions?limit=${pageSize}&page=${page}&type=${transactionType}`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        setError(errorMessage);
-        throw new Error(errorMessage);
-      }
-      const data = await response.json();
-      setResults(data || {});
+      const transactions = await api.getTransactions({ page, limit: pageSize, types: [transactionType] });
+      setResults(transactions.data);
     } catch (error) {
       toast.error(errorMessage);
     } finally {

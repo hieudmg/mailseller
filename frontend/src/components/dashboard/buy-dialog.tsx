@@ -12,20 +12,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import React, { useEffect } from 'react';
 import { api } from '@/lib/api';
+import { useCredits } from '@/context/CreditsContext';
+import { toast } from 'sonner';
+import { Stock } from '@/types/api';
 
 interface BuyDialogProps {
   trigger?: React.ReactNode;
+  stock: Stock;
   type: string;
 }
 
-export default function BuyDialog({ trigger, type }: BuyDialogProps) {
+export default function BuyDialog({ trigger, stock, type }: BuyDialogProps) {
   const [buyQuantity, setBuyQuantity] = React.useState<number | ''>(1);
   const [boughtData, setBoughtData] = React.useState<string[]>(['1']);
-  const [apiHref, setApiHref] = React.useState<string>('/api/');
+  const [apiPath, setApiPath] = React.useState<string>('');
+  const { refresh, token } = useCredits();
 
   useEffect(() => {
-    setApiHref(`/api/?type=${encodeURIComponent(type)}&quantity=${encodeURIComponent(buyQuantity.toString())}`);
-  }, [buyQuantity, type]);
+    // validate buyQuantity is numeric and greater than 0
+    if (buyQuantity === '' || buyQuantity < 1) {
+      setApiPath('');
+      return;
+    }
+
+    setApiPath(
+      'amount=' +
+        buyQuantity +
+        '&type=' +
+        encodeURIComponent(type) +
+        (token ? '&token=' + encodeURIComponent(token) : ''),
+    );
+  }, [buyQuantity, token]);
 
   return (
     <AlertDialog
@@ -42,13 +59,22 @@ export default function BuyDialog({ trigger, type }: BuyDialogProps) {
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Buy {type}</AlertDialogTitle>
+          <AlertDialogTitle>Buy {stock.name}</AlertDialogTitle>
           {boughtData.length <= 0 && (
             <AlertDialogDescription>
-              <span className="block">Buy some data directly using the API.</span>
-              <a href={apiHref} target="_blank">
-                {apiHref}
-              </a>
+              <span className="block">Buy some {stock.name} data directly using the API.</span>
+              <span className="bg-accent mt-4 block p-4 text-sm break-all">
+                Direct URL: <br />
+                <a
+                  href={'/api/purchase?' + apiPath}
+                  target="_blank"
+                  className="text-primary underline"
+                  title="Click to buy directly in new tab"
+                  rel="noreferrer"
+                >
+                  {'/api/purchase?' + apiPath}
+                </a>
+              </span>
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>
@@ -108,10 +134,12 @@ export default function BuyDialog({ trigger, type }: BuyDialogProps) {
                 setBoughtData(buyResult.data.data);
               } else {
                 // Handle purchase failure
-                alert('Purchase failed. Please try again.');
+                toast.error('Purchase failed. Please try again.');
               }
 
               setBuyQuantity(1);
+
+              await refresh();
             }}
           >
             Confirm

@@ -1,8 +1,9 @@
 import { StockProvider, useStock } from '@/context/StockContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import React from 'react';
+import { Stock } from '@/types/api';
 
-type actionFunction = ({ key }: { key: string }) => React.ReactNode;
+type actionFunction = (stock: Stock, type: string) => React.ReactNode;
 
 function StockTableInner({ action }: { action?: actionFunction }) {
   const { stock } = useStock();
@@ -29,7 +30,7 @@ function StockTableInner({ action }: { action?: actionFunction }) {
                   <TableCell>{stock[key].lifetime}</TableCell>
                   <TableCell>${stock[key].price} / account</TableCell>
                   <TableCell>{stock[key].pool_size ?? 0}</TableCell>
-                  <TableCell className="py-4 text-right">{action?.({ key })}</TableCell>
+                  <TableCell className="py-4 text-right">{action?.(stock[key], key)}</TableCell>
                 </TableRow>
               ),
           )}

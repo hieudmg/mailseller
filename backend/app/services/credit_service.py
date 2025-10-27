@@ -48,12 +48,23 @@ class CreditService:
 
     @staticmethod
     async def add_credits(
-        user_id: int, amount: float, description: str, db: AsyncSession
+        user_id: int,
+        amount: float,
+        description: str,
+        db: AsyncSession,
+        transaction_type: str = "admin_deposit"
     ):
         """
         Add credits to user account (top-up).
         Uses Redis INCRBY (atomic) as source of truth, then syncs to PostgreSQL.
         No race conditions because Redis INCRBY is atomic.
+
+        Args:
+            user_id: User ID
+            amount: Amount to add
+            description: Transaction description
+            db: Database session
+            transaction_type: Type of transaction ('admin_deposit', 'heleket')
         """
         # Atomic increment in Redis (source of truth, no race conditions)
         new_balance = await redis_manager.increment_user_credit(user_id, amount)
@@ -62,6 +73,7 @@ class CreditService:
         transaction = Transaction(
             user_id=user_id,
             amount=amount,
+            type=transaction_type,
             description=description,
             timestamp=datetime.utcnow(),
         )
@@ -120,6 +132,7 @@ class CreditService:
                 transaction = Transaction(
                     user_id=user_id,
                     amount=-result["cost"],  # Negative for purchase
+                    type="purchase",
                     description=f"Purchased {len(result['data'])} data items ({data_type})",
                     data_id=",".join(result["data"]),
                     timestamp=datetime.utcnow(),

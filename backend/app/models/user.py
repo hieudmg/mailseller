@@ -53,6 +53,7 @@ class Transaction(Base):
         Integer, ForeignKey("user.id"), nullable=False, index=True
     )
     amount: Mapped[float] = mapped_column(Float, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False, index=True, server_default="purchase")
     timestamp = Column(DateTime, server_default=func.now(), nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=True)
     data_id: Mapped[str] = mapped_column(String, nullable=True)

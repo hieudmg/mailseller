@@ -1,9 +1,4 @@
-import { PoolSize } from '@/types/api';
-
-type ApiResponse<T> = {
-  data?: T;
-  error?: string;
-};
+import { PoolSize, Tier, TransactionsResponse, ApiResponse, InvoiceResponse } from '@/types/api';
 
 class ApiClient {
   private baseUrl = '/api';
@@ -120,24 +115,7 @@ class ApiClient {
     });
   }
 
-  async getTier(): Promise<
-    ApiResponse<{
-      tier_code: string;
-      tier_name: string;
-      tier_discount: number;
-      deposit_amount: number;
-      next_tier: {
-        tier_code: string;
-        tier_name: string;
-        tier_discount: number;
-        required_deposit: number;
-        remaining: number;
-      } | null;
-      custom_discount: number | null;
-      final_discount: number;
-      discount_source: 'custom' | 'tier';
-    }>
-  > {
+  async getTier(): Promise<ApiResponse<Tier>> {
     return this.request('/tier');
   }
 
@@ -152,6 +130,36 @@ class ApiClient {
     }>
   > {
     return this.request('/tiers');
+  }
+
+  async createInvoice(amount: number): Promise<ApiResponse<InvoiceResponse>> {
+    return this.request(
+      '/payment/invoice',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      },
+      'Failed to create invoice',
+    );
+  }
+
+  async getTransactions(options?: {
+    page?: number;
+    limit?: number;
+    types?: string[];
+  }): Promise<ApiResponse<TransactionsResponse>> {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.types) {
+      options.types.forEach((type) => params.append('types', type));
+    }
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/transactions?${queryString}` : '/transactions';
+
+    return this.request(endpoint);
   }
 }
 

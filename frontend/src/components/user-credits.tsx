@@ -1,6 +1,6 @@
 import { CreditsProvider, useCredits } from '@/context/CreditsContext';
 
-function Credits() {
+export default function Credits() {
   const { credits, tierData } = useCredits();
 
   return (
@@ -12,7 +12,7 @@ function Credits() {
   );
 }
 
-export default function UserCredits() {
+function UserCredits() {
   return (
     <CreditsProvider>
       <Credits />

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.api.endpoints import admin
-from app.api.endpoints import datapool, credits
+from app.api.endpoints import datapool, credits, payment
 from app.models.user import UserRead, UserCreate, UserUpdate
 from app.users import fastapi_users, web_auth_backend
 
@@ -9,6 +9,7 @@ api_router = APIRouter()
 # Include credit and data pool routes
 api_router.include_router(credits.router, prefix="", tags=["credits"])
 api_router.include_router(datapool.router, prefix="/datapool", tags=["datapool"])
+api_router.include_router(payment.router, prefix="/payment", tags=["payment"])
 
 # Admin routes
 admin_router = APIRouter()

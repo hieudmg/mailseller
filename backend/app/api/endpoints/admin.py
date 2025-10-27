@@ -62,7 +62,7 @@ async def add_credits(
         raise HTTPException(status_code=404, detail="User not found")
 
     new_balance = await CreditService.add_credits(
-        user.id, request.amount, request.description, db
+        user.id, request.amount, request.description, db, transaction_type="admin_deposit"
     )
 
     # Recalculate and cache discount after adding credits

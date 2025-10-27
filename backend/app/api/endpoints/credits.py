@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -86,7 +87,9 @@ async def purchase_data(
 
     try:
         if storage == "redis":
-            result = await CreditService.purchase_data(user_id, amount, type, db, discount)
+            result = await CreditService.purchase_data(
+                user_id, amount, type, db, discount
+            )
         else:  # db storage
             from app.services.pool_service import PoolService
 
@@ -127,6 +130,7 @@ async def purchase_data(
             transaction = Transaction(
                 user_id=user_id,
                 amount=-cost,
+                type="purchase",
                 description=f"Purchased {len(db_result['data'])} data items ({type})",
                 data_id=",".join(db_result["data"]),
                 timestamp=datetime.utcnow(),
@@ -172,7 +176,7 @@ async def get_my_transactions(
     request: Request,
     page: int = 1,
     limit: int = 20,
-    type: str = None,  # 'credit' for deposits, 'purchase' for purchases, None for all
+    types: Optional[List[str]] = Query(None),  # Filter by multiple transaction types
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
 ):
@@ -182,10 +186,13 @@ async def get_my_transactions(
     Query Parameters:
         - page: Page number (default: 1)
         - limit: Items per page - 20, 50, or 100 (default: 20)
-        - type: Filter by transaction type (optional)
-            - 'credit' or 'deposit': Only credit deposits (positive amounts)
-            - 'purchase': Only purchases (negative amounts)
+        - types: Filter by transaction types (optional, can pass multiple)
+            - 'purchase': Data purchases
+            - 'admin_deposit': Admin credit deposits
+            - 'heleket': Heleket payment deposits
             - None: All transactions
+
+    Example: /api/transactions?types=heleket&types=admin_deposit
 
     Supports both bearer token and cookie authentication.
     """
@@ -196,28 +203,27 @@ async def get_my_transactions(
         page = 1
     offset = (page - 1) * limit
 
-    # Validate type parameter
-    if type and type not in ['credit', 'deposit', 'purchase']:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid type parameter. Must be 'credit', 'deposit', or 'purchase'"
-        )
+    # Validate types parameter
+    valid_types = ["purchase", "admin_deposit", "heleket"]
+    if types:
+        for t in types:
+            if t not in valid_types:
+                raise HTTPException(status_code=400, detail=f"Invalid type parameter")
 
     # Build base query
     from sqlalchemy import func
 
     base_query = select(Transaction).where(Transaction.user_id == user.id)
-    count_query = select(func.count()).select_from(Transaction).where(Transaction.user_id == user.id)
+    count_query = (
+        select(func.count())
+        .select_from(Transaction)
+        .where(Transaction.user_id == user.id)
+    )
 
     # Apply type filter
-    if type in ['credit', 'deposit']:
-        # Credit deposits have positive amounts
-        base_query = base_query.where(Transaction.amount > 0)
-        count_query = count_query.where(Transaction.amount > 0)
-    elif type == 'purchase':
-        # Purchases have negative amounts
-        base_query = base_query.where(Transaction.amount < 0)
-        count_query = count_query.where(Transaction.amount < 0)
+    if types:
+        base_query = base_query.where(Transaction.type.in_(types))
+        count_query = count_query.where(Transaction.type.in_(types))
 
     # Get total count with filter applied
     total_result = await db.execute(count_query)
@@ -225,10 +231,7 @@ async def get_my_transactions(
 
     # Get paginated transactions
     result = await db.execute(
-        base_query
-        .order_by(Transaction.timestamp.desc())
-        .offset(offset)
-        .limit(limit)
+        base_query.order_by(Transaction.timestamp.desc()).offset(offset).limit(limit)
     )
     transactions = result.scalars().all()
 
@@ -236,15 +239,15 @@ async def get_my_transactions(
         "page": page,
         "limit": limit,
         "total": total,
-        "type_filter": type,
+        "type_filter": types,
         "transactions": [
             {
                 "id": t.id,
                 "amount": t.amount,
+                "type": t.type,
                 "description": t.description,
                 "data_id": t.data_id,
                 "timestamp": t.timestamp.isoformat(),
-                "type": "credit" if t.amount > 0 else "purchase",
             }
             for t in transactions
         ],
@@ -333,9 +336,7 @@ async def get_all_tiers():
     from app.core.config import settings
 
     # Sort tiers by threshold
-    tiers_sorted = sorted(
-        settings.RANKS.items(), key=lambda x: x[1]["weekly_credit"]
-    )
+    tiers_sorted = sorted(settings.RANKS.items(), key=lambda x: x[1]["weekly_credit"])
 
     return {
         "tiers": [
