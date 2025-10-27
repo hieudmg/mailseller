@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { TransactionLayout, formatDate, getTransactionTypeColor, formatAmount, type Transaction } from '@/components/transaction-layout';
+import { TransactionLayout, formatDate, getTransactionTypeColor, formatAmount } from '@/components/transaction-layout';
+import { Transaction } from '@/types/api';
 
 export default function PurchasesPage() {
   const [viewData, setViewData] = useState<string | null>(null);
@@ -12,7 +13,9 @@ export default function PurchasesPage() {
   const columns = [
     {
       header: 'Date',
-      render: (transaction: Transaction) => <span className="font-mono text-sm">{formatDate(transaction.timestamp)}</span>,
+      render: (transaction: Transaction) => (
+        <span className="font-mono text-sm">{formatDate(transaction.timestamp)}</span>
+      ),
     },
     {
       header: 'Description',
@@ -35,7 +38,7 @@ export default function PurchasesPage() {
             <button
               className="rounded p-1 hover:bg-gray-100"
               title="View full data"
-              onClick={() => setViewData(transaction.data_id)}
+              onClick={() => setViewData('' + transaction.data_id)}
             >
               <Search className="h-4 w-4" />
             </button>
