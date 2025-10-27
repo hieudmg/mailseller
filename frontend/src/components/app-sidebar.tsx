@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useMemo } from 'react';
-import { Package, Settings, CreditCard, ShoppingBag, DollarSign, Trophy } from 'lucide-react';
+import { Package, Settings, CreditCard, ShoppingBag, DollarSign, Trophy, User } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -10,7 +10,6 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarMenu,
   SidebarMenuButton,
@@ -34,14 +33,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const navMain = [
     {
+      title: 'Profile',
+      url: '/dashboard/profile',
+      icon: User,
+    },
+    {
       title: 'Products',
       url: '/dashboard/products',
       icon: Package,
-    },
-    {
-      title: 'Account Settings',
-      url: '/dashboard/settings',
-      icon: Settings,
     },
     {
       title: 'Your Payments',

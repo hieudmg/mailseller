@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { ExternalLink, Clock, DollarSign, History } from 'lucide-react';
 import { InvoiceResponse, Transaction } from '@/types/api';
+import Header from '@/components/dashboard/header';
 
 export default function DepositPage() {
   const [amount, setAmount] = useState<string>('');
@@ -108,13 +109,11 @@ export default function DepositPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold">Deposit Credits</h1>
-        <p className="text-muted-foreground">
-          Add funds to your account using cryptocurrency via Heleket payment gateway
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Header
+        title="Deposit Credits"
+        subtitle="Add funds to your account using cryptocurrency via Heleket payment gateway"
+      />
 
       {/* Create Invoice Form */}
       <Card>

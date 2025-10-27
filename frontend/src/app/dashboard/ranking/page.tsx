@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import Header from '@/components/dashboard/header';
+import Image from 'next/image';
 
 const TIER_COLORS: Record<string, string> = {
   iron: 'bg-gray-400',
@@ -62,18 +64,11 @@ export default function RankingPage() {
     : 100;
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4">
-      <div>
-        <h1 className="text-2xl font-bold">Your Ranking</h1>
-        <p className="text-muted-foreground">Based on your deposits from the last 7 days</p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <Header title="Your Ranking" subtitle="View your current tier and progress to the next tier." />
 
       {/* Current Tier Card */}
       <Card className="border-2">
-        <CardHeader>
-          <CardTitle>Current Tier</CardTitle>
-          <CardDescription>Your discount tier is determined by deposits from the last 7 days</CardDescription>
-        </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -149,7 +144,7 @@ export default function RankingPage() {
                     <div
                       className={`h-12 w-12 rounded-full ${TIER_COLORS[tier.code] || 'bg-gray-400'} flex items-center justify-center font-bold text-white`}
                     >
-                      {tier.name.charAt(0)}
+                      <Image src={`/ranks/${tier.code}.png`} alt={tier.code} width={48} height={48} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 font-semibold">

@@ -45,7 +45,9 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<div className="flex h-full items-center justify-center p-4">Loading...</div>}>
-      <DashboardContent>{children}</DashboardContent>
+      <DashboardContent>
+        <div className="p-4 md:p-6">{children}</div>
+      </DashboardContent>
     </Suspense>
   );
 }

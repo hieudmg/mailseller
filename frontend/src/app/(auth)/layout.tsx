@@ -13,7 +13,7 @@ function AuthLayoutContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!loading && user) {
-      const next = searchParams.get('next') || '/dashboard';
+      const next = searchParams.get('next') || '/dashboard/profile';
       router.push(next);
     }
   }, [loading, user, router, searchParams]);

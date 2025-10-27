@@ -126,6 +126,7 @@ class ApiClient {
         name: string;
         discount: number;
         threshold: number;
+        icon: string;
       }>;
     }>
   > {

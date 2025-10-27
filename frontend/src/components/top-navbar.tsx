@@ -42,7 +42,7 @@ export function TopNavbar() {
             <span className="text-foreground/60 text-sm">{userEmail}</span>
           )}
           <Button variant="ghost" asChild className={mobile ? 'justify-start' : ''}>
-            <Link href="/dashboard" onClick={() => mobile && setIsOpen(false)}>
+            <Link href="/dashboard/products" onClick={() => mobile && setIsOpen(false)}>
               Dashboard
             </Link>
           </Button>

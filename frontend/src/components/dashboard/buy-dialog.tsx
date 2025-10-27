@@ -63,12 +63,12 @@ export default function BuyDialog({ trigger, stock, type }: BuyDialogProps) {
           {boughtData.length <= 0 && (
             <AlertDialogDescription>
               <span className="block">Buy some {stock.name} data directly using the API.</span>
-              <span className="bg-accent mt-4 block p-4 text-sm break-all">
+              <span className="bg-accent text-foreground mt-4 block p-4 text-sm break-all">
                 Direct URL: <br />
                 <a
                   href={'/api/purchase?' + apiPath}
                   target="_blank"
-                  className="text-primary underline"
+                  className="text-primary-foreground underline"
                   title="Click to buy directly in new tab"
                   rel="noreferrer"
                 >

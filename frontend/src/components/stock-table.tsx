@@ -5,19 +5,19 @@ import { Stock } from '@/types/api';
 
 type actionFunction = (stock: Stock, type: string) => React.ReactNode;
 
-function StockTableInner({ action }: { action?: actionFunction }) {
+function StockTableInner({ action, header }: { action?: actionFunction; header?: React.ReactNode }) {
   const { stock } = useStock();
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <h1 className="text-2xl font-bold">Products</h1>
+      {header || <h1 className="text-2xl font-bold">Products</h1>}
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Products</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Price</TableHead>
-            <TableHead>Stock</TableHead>
+            <TableHead className="font-bold opacity-75">Products</TableHead>
+            <TableHead className="font-bold opacity-75">Lifetime</TableHead>
+            <TableHead className="font-bold opacity-75">Price</TableHead>
+            <TableHead className="font-bold opacity-75">Stock</TableHead>
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
@@ -27,8 +27,10 @@ function StockTableInner({ action }: { action?: actionFunction }) {
               stock?.[key] && (
                 <TableRow key={key}>
                   <TableCell>{stock[key].name}</TableCell>
-                  <TableCell>{stock[key].lifetime}</TableCell>
-                  <TableCell>${stock[key].price} / account</TableCell>
+                  <TableCell>{stock[key].lifetime === 'short' ? '1-5 hours' : '5-10 hours'}</TableCell>
+                  <TableCell>
+                    ${stock[key].price} <span className="opacity-75">/ account</span>
+                  </TableCell>
                   <TableCell>{stock[key].pool_size ?? 0}</TableCell>
                   <TableCell className="py-4 text-right">{action?.(stock[key], key)}</TableCell>
                 </TableRow>
@@ -40,10 +42,10 @@ function StockTableInner({ action }: { action?: actionFunction }) {
   );
 }
 
-export function StockTable({ action }: { action?: actionFunction }) {
+export function StockTable({ action, header }: { action?: actionFunction; header?: React.ReactNode }) {
   return (
     <StockProvider>
-      <StockTableInner action={action} />
+      <StockTableInner action={action} header={header} />
     </StockProvider>
   );
 }

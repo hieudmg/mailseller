@@ -10,6 +10,7 @@ import { Paginate } from '@/components/paginate';
 import throttle from 'lodash/throttle';
 import { api } from '@/lib/api';
 import { Transaction, TransactionsResponse } from '@/types/api';
+import Header from '@/components/dashboard/header';
 
 interface ColumnConfig {
   header: string;
@@ -67,21 +68,25 @@ export function TransactionLayout({
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center gap-2 space-y-2">
-        <h1 className="text-2xl font-bold">{title}</h1>
-        <button
-          type="button"
-          className="rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-          title="Refresh"
-          aria-label="Refresh"
-          onClick={() => fetchTransactions()}
-          disabled={loading}
-        >
-          <RefreshCw className={`h-5 w-5 ${loading ? 'text-muted-foreground animate-spin' : ''}`} />
-        </button>
-      </div>
-      <p className="text-muted-foreground">{description}</p>
+    <div className="flex flex-1 flex-col gap-4">
+      <Header
+        title={
+          <div className="flex items-center gap-2">
+            <span>{title}</span>
+            <button
+              type="button"
+              className="rounded p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Refresh"
+              aria-label="Refresh"
+              onClick={() => fetchTransactions()}
+              disabled={loading}
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'text-muted-foreground animate-spin' : ''}`} />
+            </button>
+          </div>
+        }
+        subtitle={description}
+      />
       <Card>
         <CardHeader>
           <CardTitle>{cardTitle}</CardTitle>
@@ -98,7 +103,7 @@ export function TransactionLayout({
           ) : loading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
+                <Skeleton key={i} className="bg-background h-12 w-full" />
               ))}
             </div>
           ) : results?.total === 0 ? (
