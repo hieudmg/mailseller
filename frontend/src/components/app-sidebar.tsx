@@ -20,17 +20,6 @@ import Icon from '@/components/icon';
 import Link from 'next/link';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth();
-
-  const navUser = useMemo(
-    () => ({
-      name: user?.email ? user.email.split('@')[0] : '',
-      email: user?.email ?? '',
-      avatar: '',
-    }),
-    [user],
-  );
-
   const navMain = [
     {
       title: 'Profile',
@@ -70,20 +59,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
+              <SidebarMenuButton className="hover:bg-transparent" asChild>
                 <Link href="/" className="py-6">
                   <Icon />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <NavUser user={navUser} />
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
         <NavMain items={navMain} />
       </SidebarContent>
-      <SidebarRail />
     </Sidebar>
   );
 }

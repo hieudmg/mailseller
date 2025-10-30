@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useCredits } from '@/context/CreditsContext';
+import { CreditsProvider, useCredits } from '@/context/CreditsContext';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,14 @@ type Tier = {
 };
 
 export default function RankingPage() {
+  return (
+    <CreditsProvider>
+      <RankingPageContent />
+    </CreditsProvider>
+  );
+}
+
+export function RankingPageContent() {
   const { tierData, loading } = useCredits();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [tiersLoading, setTiersLoading] = useState(true);
@@ -77,12 +85,7 @@ export default function RankingPage() {
                 ${tierData.deposit_amount.toFixed(2)} deposited in last 7 days
               </div>
             </div>
-            <Badge
-              variant="secondary"
-              className={`px-4 py-2 text-lg ${TIER_COLORS[tierData.tier_code] || 'bg-gray-400'} text-white`}
-            >
-              {tierData.final_discount * 100}% OFF
-            </Badge>
+            <Badge className={`px-4 py-2 text-lg`}>{tierData.final_discount * 100}% OFF</Badge>
           </div>
 
           {tierData.custom_discount !== null && (

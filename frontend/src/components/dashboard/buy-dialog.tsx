@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import React, { useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useCredits } from '@/context/CreditsContext';
+import { CreditsProvider, useCredits } from '@/context/CreditsContext';
 import { toast } from 'sonner';
 import { Stock } from '@/types/api';
 
@@ -22,7 +22,15 @@ interface BuyDialogProps {
   type: string;
 }
 
-export default function BuyDialog({ trigger, stock, type }: BuyDialogProps) {
+export default function BuyDialog(props: BuyDialogProps) {
+  return (
+    <CreditsProvider>
+      <BuyDialogContent {...props} />
+    </CreditsProvider>
+  );
+}
+
+export function BuyDialogContent({ trigger, stock, type }: BuyDialogProps) {
   const [buyQuantity, setBuyQuantity] = React.useState<number | ''>(1);
   const [boughtData, setBoughtData] = React.useState<string[]>(['1']);
   const [apiPath, setApiPath] = React.useState<string>('');

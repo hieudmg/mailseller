@@ -3,9 +3,11 @@
 import React, { useEffect, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { CreditsProvider } from '@/context/CreditsContext';
 import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { NavUser } from '@/components/nav-user';
+import { Spinner } from '@/components/ui/spinner';
+import FullScreenLoader from '@/components/full-screen-loader';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -24,7 +26,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   }, [loading, user, router, pathname, searchParams]);
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center p-4">Loading...</div>;
+    return <FullScreenLoader />;
   }
 
   if (!user) {
@@ -33,18 +35,24 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <CreditsProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>{children}</SidebarInset>
-      </SidebarProvider>
-    </CreditsProvider>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="md:hidden" />
+          <div className="ml-auto">
+            <NavUser email={user.email} />
+          </div>
+        </header>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="flex h-full items-center justify-center p-4">Loading...</div>}>
+    <Suspense fallback={<FullScreenLoader />}>
       <DashboardContent>
         <div className="p-4 md:p-6">{children}</div>
       </DashboardContent>

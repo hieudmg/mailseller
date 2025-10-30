@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import Icon from '@/components/icon';
+import { NavUser } from '@/components/nav-user';
+import { Spinner } from '@/components/ui/spinner';
 
 export function TopNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,17 +32,12 @@ export function TopNavbar() {
 
   const renderAuthButtons = (mobile: boolean = false) => {
     if (loading) {
-      return <div className="text-muted-foreground text-sm">Loading...</div>;
+      return <Spinner />;
     }
 
     if (isLoggedIn) {
       return (
         <>
-          {mobile ? (
-            <div className="text-foreground/60 px-2 py-1 text-sm">{userEmail}</div>
-          ) : (
-            <span className="text-foreground/60 text-sm">{userEmail}</span>
-          )}
           <Button variant="ghost" asChild className={mobile ? 'justify-start' : ''}>
             <Link href="/dashboard/products" onClick={() => mobile && setIsOpen(false)}>
               Dashboard
@@ -112,16 +109,13 @@ export function TopNavbar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-              <nav className="flex flex-col space-y-4">
+              <nav className="flex flex-col space-y-4 p-4 pt-8">
                 {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="block px-2 py-1 text-lg"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
+                  <Button variant="ghost" key={link.href} className="justify-start">
+                    <Link href={link.href} onClick={() => setIsOpen(false)}>
+                      {link.label}
+                    </Link>
+                  </Button>
                 ))}
                 <div className="flex flex-col space-y-2 border-t pt-4">{renderAuthButtons(true)}</div>
               </nav>
