@@ -21,7 +21,6 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Load initial data from PostgreSQL to memory
     logger.info("Application startup: Loading data from PostgreSQL to memory")
-    await scheduler.load_data_from_postgres()
 
     # Initialize database session and start background tasks
     db = async_session_maker()
