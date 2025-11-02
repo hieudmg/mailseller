@@ -24,7 +24,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 If you want to produce a static (SSG) export of the frontend and avoid running it as a container/server, use the provided build script which runs a Next.js build and `next export` to `frontend/out`:
 
-From the repository root:
+From the repository root:"
 
 ```fish
 # build and export the static site

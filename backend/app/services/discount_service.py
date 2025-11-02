@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.redis_manager import redis_manager
+from app.core.memory_manager import memory_manager
 from app.core.config import settings
 from app.models.user import User, Transaction
 
@@ -10,8 +10,7 @@ from app.models.user import User, Transaction
 class DiscountService:
     """Service for managing user discount tiers based on 7-day deposits."""
 
-    # Redis key prefix for cached discount
-    USER_DISCOUNT_PREFIX = "discount:user:"
+    # Memory cache TTL for discount
     CACHE_TTL = 3600  # 1 hour
 
     @staticmethod
@@ -84,17 +83,16 @@ class DiscountService:
     async def get_user_discount(user_id: int, db: AsyncSession) -> float:
         """
         Get final discount for user (custom or tier-based).
-        PERFORMANCE: Checks Redis cache first, only queries DB on cache miss.
+        PERFORMANCE: Checks memory cache first, only queries DB on cache miss.
 
         Returns:
             Final discount as float (0.0-1.0)
         """
-        # Check Redis cache first (fast path)
-        cache_key = f"{DiscountService.USER_DISCOUNT_PREFIX}{user_id}"
-        cached_discount = await redis_manager.client.get(cache_key)
+        # Check memory cache first (fast path)
+        cached_discount = memory_manager.get_discount(user_id)
 
         if cached_discount is not None:
-            return float(cached_discount)
+            return cached_discount
 
         # Cache miss - query database
         result = await db.execute(select(User).where(User.id == user_id))
@@ -113,9 +111,7 @@ class DiscountService:
             final_discount = tier_info["tier_discount"]
 
         # Cache the result
-        await redis_manager.client.setex(
-            cache_key, DiscountService.CACHE_TTL, final_discount
-        )
+        memory_manager.set_discount(user_id, final_discount, DiscountService.CACHE_TTL)
 
         return final_discount
 
@@ -145,10 +141,7 @@ class DiscountService:
             final_discount = tier_info["tier_discount"]
 
         # Update cache with new value
-        cache_key = f"{DiscountService.USER_DISCOUNT_PREFIX}{user_id}"
-        await redis_manager.client.setex(
-            cache_key, DiscountService.CACHE_TTL, final_discount
-        )
+        memory_manager.set_discount(user_id, final_discount, DiscountService.CACHE_TTL)
 
         return final_discount
 

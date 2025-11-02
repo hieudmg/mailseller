@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.models.user import User, UserToken, get_async_session, Transaction
 from app.services.credit_service import CreditService
 from app.users import current_active_user, get_user_from_token
-from app.core.redis_manager import redis_manager
+from app.core.memory_manager import memory_manager
 from app.core.token_utils import generate_user_token
 
 router = APIRouter()
@@ -64,9 +64,7 @@ async def purchase_data(
         raise HTTPException(status_code=400, detail="Token is required")
 
     # Authenticate user by token
-    from app.core.redis_manager import redis_manager
-
-    user_id = await redis_manager.get_user_id_by_token(token)
+    user_id = memory_manager.get_user_id_by_token(token)
 
     # Determine which storage the type uses
     from app.services.type_service import TypeService
@@ -86,7 +84,7 @@ async def purchase_data(
     discount = await DiscountService.get_user_discount(user_id, db)
 
     try:
-        if storage == "redis":
+        if storage == "memory":
             result = await CreditService.purchase_data(
                 user_id, amount, type, db, discount
             )
@@ -94,7 +92,7 @@ async def purchase_data(
             from app.services.pool_service import PoolService
 
             # Check credit first
-            user_credit = await redis_manager.get_user_credit(user_id)
+            user_credit = memory_manager.get_user_credit(user_id)
             base_cost: float = amount * type_config.get("price")
 
             # Apply discount
@@ -115,10 +113,8 @@ async def purchase_data(
                     detail=f"No data available in pool for type '{type}'",
                 )
 
-            # Deduct credits from Redis
-            new_credit = await redis_manager.client.incrbyfloat(
-                f"{redis_manager.USER_CREDIT_PREFIX}{user_id}", -cost
-            )
+            # Deduct credits from memory
+            new_credit = memory_manager.increment_user_credit(user_id, -cost)
 
             # Create transaction record
             from app.models.user import Transaction
@@ -294,8 +290,8 @@ async def rotate_my_token(
         await db.commit()
         await db.refresh(user_token)
 
-        # Store new token in Redis
-        await redis_manager.set_user_token(user.id, new_token)
+        # Store new token in memory
+        memory_manager.set_user_token(user.id, new_token)
 
         return {
             "user_id": user.id,
@@ -305,18 +301,13 @@ async def rotate_my_token(
             "message": "Token created successfully.",
         }
 
-    # Delete old token from Redis
-    old_token = user_token.token
-    old_token_key = f"{redis_manager.TOKEN_TO_USER_PREFIX}{old_token}"
-    await redis_manager.client.delete(old_token_key)
-
     # Update token in database
     user_token.token = new_token
     await db.commit()
     await db.refresh(user_token)
 
-    # Store new token in Redis
-    await redis_manager.set_user_token(user.id, new_token)
+    # Store new token in memory (this automatically removes old token)
+    memory_manager.set_user_token(user.id, new_token)
 
     return {
         "user_id": user.id,

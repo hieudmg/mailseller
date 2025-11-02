@@ -171,5 +171,5 @@ export const getTransactionTypeColor = (amount: number) => {
 export const formatAmount = (amount: number) => {
   const absoluteAmount = Math.abs(amount);
   const sign = amount > 0 ? '+' : '-';
-  return `${sign} $${absoluteAmount.toFixed(2)}`;
+  return `${sign} $${absoluteAmount.toFixed(5)}`;
 };

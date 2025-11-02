@@ -24,11 +24,7 @@ export default function PurchasesPage() {
     {
       header: 'Amount',
       className: 'text-right',
-      render: (transaction: Transaction) => (
-        <span className={`font-semibold ${getTransactionTypeColor(transaction.amount)}`}>
-          {formatAmount(transaction.amount)}
-        </span>
-      ),
+      render: (transaction: Transaction) => <span className="text-red-500">{formatAmount(transaction.amount)}</span>,
     },
     {
       header: 'Data',

@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.redis_manager import redis_manager
+from app.core.memory_manager import memory_manager
 from app.models.user import DataPool, DataPoolSold
 from app.services.type_service import TypeService
 
@@ -158,8 +158,8 @@ class PoolService:
         result = {}
 
         for type_name, storage in TypeService.get_all_types().items():
-            if storage.get("storage") == "redis":
-                size = await redis_manager.get_pool_size(type_name)
+            if storage.get("storage") == "memory":
+                size = memory_manager.get_pool_size(type_name)
             else:  # db
                 size = await PoolService.get_pool_size(type_name, db)
             result[type_name] = {"pool_size": size, "config": storage}

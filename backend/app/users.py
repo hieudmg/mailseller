@@ -1,21 +1,55 @@
 import os
 import uuid
 from typing import Optional
-import redis.asyncio
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
 from fastapi_users.authentication import (
     AuthenticationBackend,
     BearerTransport,
-    RedisStrategy, Strategy, CookieTransport,
+    Strategy, CookieTransport,
 )
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserToken, get_user_db, get_async_session
 from app.core.token_utils import generate_user_token
+from app.core.memory_manager import memory_manager
 
 SECRET = os.getenv('AUTH_SECRET')
+
+
+class MemoryStrategy(Strategy[models.UP, models.ID]):
+    """Authentication strategy using in-memory session storage."""
+
+    def __init__(self, lifetime_seconds: int = 3600):
+        self.lifetime_seconds = lifetime_seconds
+
+    async def read_token(
+        self, token: Optional[str], user_manager: BaseUserManager[models.UP, models.ID]
+    ) -> Optional[models.UP]:
+        """Read user from session token."""
+        if token is None:
+            return None
+
+        user_id = memory_manager.get_session(token)
+        if user_id is None:
+            return None
+
+        try:
+            user = await user_manager.get(user_id)
+            return user
+        except Exception:
+            return None
+
+    async def write_token(self, user: models.UP) -> str:
+        """Create session token for user."""
+        token = generate_user_token(str(user.id))
+        memory_manager.create_session(token, user.id, self.lifetime_seconds)
+        return token
+
+    async def destroy_token(self, token: str, user: models.UP) -> None:
+        """Destroy session token."""
+        memory_manager.delete_session(token)
 
 
 class UserManager(BaseUserManager[User, int]):
@@ -37,9 +71,8 @@ class UserManager(BaseUserManager[User, int]):
             session.add(user_token)
             await session.commit()
 
-            # Store token in Redis for fast authentication
-            from app.core.redis_manager import redis_manager
-            await redis_manager.set_user_token(user.id, token)
+            # Store token in memory for fast authentication
+            memory_manager.set_user_token(user.id, token)
 
             print(f"Generated API token for user {user.id}: {token}")
             break
@@ -62,10 +95,9 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 cookie_transport = CookieTransport(cookie_max_age=3600)
 
-redis = redis.asyncio.from_url(os.getenv('REDIS_URL'))
 
 def get_auth_strategy() -> Strategy[models.UP, models.ID]:
-    return RedisStrategy(redis, lifetime_seconds=3600)
+    return MemoryStrategy(lifetime_seconds=3600)
 
 
 web_auth_backend = AuthenticationBackend(
@@ -91,15 +123,14 @@ async def get_user_from_token(
     """Authenticate user by bearer token from user_token table."""
     from fastapi import HTTPException
     from sqlalchemy import select
-    from app.core.redis_manager import redis_manager
 
     token = credentials.credentials
 
-    # First check Redis for fast authentication
-    user_id = await redis_manager.get_user_id_by_token(token)
+    # First check memory for fast authentication
+    user_id = memory_manager.get_user_id_by_token(token)
 
     if user_id is None:
-        # Fallback to database if not in Redis
+        # Fallback to database if not in memory
         result = await session.execute(
             select(UserToken).where(UserToken.token == token)
         )
@@ -110,8 +141,8 @@ async def get_user_from_token(
 
         user_id = user_token.user_id
 
-        # Cache token in Redis for future requests
-        await redis_manager.set_user_token(user_id, token)
+        # Cache token in memory for future requests
+        memory_manager.set_user_token(user_id, token)
 
     # Get user from database
     result = await session.execute(

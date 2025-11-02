@@ -22,9 +22,7 @@ export default function PaymentsPage() {
     {
       header: 'Amount',
       className: 'text-right',
-      render: (transaction: Transaction) => (
-        <span className="font-semibold text-green-500">{formatAmount(transaction.amount)}</span>
-      ),
+      render: (transaction: Transaction) => <span className="text-green-500">{formatAmount(transaction.amount)}</span>,
     },
   ];
 

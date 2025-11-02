@@ -6,7 +6,7 @@ from typing import List, Optional
 from app.models.user import User, get_async_session
 from app.services.credit_service import CreditService
 from app.services.type_service import TypeService
-from app.core.redis_manager import redis_manager
+from app.core.memory_manager import memory_manager
 from app.core.config import settings
 from sqlalchemy import select
 
@@ -129,25 +129,48 @@ async def add_data_to_pool(
     for data_group in data:
         try:
             type_config = TypeService.get_type_config(data_group.type)
-            added_count = await redis_manager.add_data_to_pool(
-                data_group.items,
-                data_type=data_group.type,
-                storage=type_config.get("storage"),
-                db_session=db if type_config.get("storage") == "db" else None,
-            )
+            storage = type_config.get("storage")
 
-            # Get pool size based on storage type
-            if type_config.get("storage") == "redis":
-                pool_size = await redis_manager.get_pool_size(data_group.type)
+            if storage == "memory":
+                # Add to memory pool
+                added_count = memory_manager.add_data_to_pool(
+                    data_group.items, data_type=data_group.type
+                )
+                pool_size = memory_manager.get_pool_size(data_group.type)
             else:  # db
-                from app.services.pool_service import PoolService
+                # Add to database pool
+                from app.models.user import DataPool
+                from sqlalchemy import select
+                from sqlalchemy.exc import IntegrityError
 
+                added_count = 0
+                for item in data_group.items:
+                    try:
+                        # Check if item already exists
+                        result_check = await db.execute(
+                            select(DataPool).where(DataPool.data == item)
+                        )
+                        existing = result_check.scalar_one_or_none()
+
+                        if not existing:
+                            new_item = DataPool(type=data_group.type, data=item)
+                            db.add(new_item)
+                            added_count += 1
+                    except IntegrityError:
+                        # Item already exists (race condition), skip
+                        await db.rollback()
+                        continue
+
+                await db.commit()
+
+                # Get pool size from database
+                from app.services.pool_service import PoolService
                 pool_size = await PoolService.get_pool_size(data_group.type, db)
 
             results.append(
                 {
                     "type": data_group.type,
-                    "storage": type_config.get("storage"),
+                    "storage": storage,
                     "added": added_count,
                     "pool_size": pool_size,
                 }
