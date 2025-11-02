@@ -1,9 +1,10 @@
-import { CreditsProvider, useCredits } from '@/context/CreditsContext';
+import { useCredits } from '@/context/CreditsContext';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import LightSkeleton from '@/components/light-skeleton';
+import { formatAmount } from '@/lib/utils';
 
-export default function Credits() {
+export default function UserCredits() {
   const { credits, tierData } = useCredits();
 
   return (
@@ -18,9 +19,9 @@ export default function Credits() {
             height={32}
           />
           <div>
-            <div className="text-primary">${credits.toLocaleString()}</div>
+            <div className="text-primary">{formatAmount(credits)}</div>
             <Badge>
-              <span>${tierData.final_discount * 100}% off</span>
+              <span>{tierData.final_discount * 100}% off</span>
             </Badge>
           </div>
         </div>
@@ -35,13 +36,5 @@ export default function Credits() {
         </div>
       )}
     </div>
-  );
-}
-
-function UserCredits() {
-  return (
-    <CreditsProvider>
-      <Credits />
-    </CreditsProvider>
   );
 }

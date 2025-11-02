@@ -6,8 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { NavUser } from '@/components/nav-user';
-import { Spinner } from '@/components/ui/spinner';
 import FullScreenLoader from '@/components/full-screen-loader';
+import { CreditsProvider } from '@/context/CreditsContext';
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -53,9 +53,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<FullScreenLoader />}>
-      <DashboardContent>
-        <div className="p-4 md:p-6">{children}</div>
-      </DashboardContent>
+      <CreditsProvider>
+        <DashboardContent>
+          <div className="p-4 md:p-6">{children}</div>
+        </DashboardContent>
+      </CreditsProvider>
     </Suspense>
   );
 }

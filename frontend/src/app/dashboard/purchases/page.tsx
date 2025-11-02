@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
-import { TransactionLayout, formatDate, getTransactionTypeColor, formatAmount } from '@/components/transaction-layout';
+import { TransactionLayout, formatDate } from '@/components/transaction-layout';
 import { Transaction } from '@/types/api';
+import { formatAmount } from '@/lib/utils';
 
 export default function PurchasesPage() {
   const [viewData, setViewData] = useState<string | null>(null);

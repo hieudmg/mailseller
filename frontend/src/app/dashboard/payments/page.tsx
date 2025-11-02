@@ -2,12 +2,9 @@
 
 import { TransactionLayout, formatDate } from '@/components/transaction-layout';
 import { Transaction } from '@/types/api';
+import { formatAmount } from '@/lib/utils';
 
 export default function PaymentsPage() {
-  const formatAmount = (amount: number) => {
-    return `+ $${Math.abs(amount).toFixed(2)}`;
-  };
-
   const columns = [
     {
       header: 'Date',

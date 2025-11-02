@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { ExternalLink, Clock, DollarSign, History } from 'lucide-react';
 import { InvoiceResponse, Transaction } from '@/types/api';
 import Header from '@/components/dashboard/header';
+import { formatAmount } from '@/lib/utils';
 
 export default function DepositPage() {
   const [amount, setAmount] = useState<string>('');
@@ -139,7 +140,7 @@ export default function DepositPage() {
               onChange={(e) => setAmount(e.target.value)}
               disabled={loading || !!invoice}
             />
-            <p className="text-muted-foreground text-sm">Minimum deposit: $1.00 USD</p>
+            <p className="text-muted-foreground text-sm">Minimum deposit: {formatAmount(1)}</p>
           </div>
           <Button onClick={handleCreateInvoice} disabled={loading || !!invoice} className="w-full">
             {loading ? 'Creating Invoice...' : 'Create Invoice'}

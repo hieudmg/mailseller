@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import Icon from '@/components/icon';
-import { NavUser } from '@/components/nav-user';
 import { Spinner } from '@/components/ui/spinner';
 
 export function TopNavbar() {
@@ -38,6 +37,10 @@ export function TopNavbar() {
     if (isLoggedIn) {
       return (
         <>
+          <div className="truncate text-sm">
+            <div>Welcome,</div>
+            <div>{userEmail}</div>
+          </div>
           <Button variant="ghost" asChild className={mobile ? 'justify-start' : ''}>
             <Link href="/dashboard/products" onClick={() => mobile && setIsOpen(false)}>
               Dashboard

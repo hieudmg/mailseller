@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import React from 'react';
 import { Stock } from '@/types/api';
 import LightSkeleton from '@/components/light-skeleton';
+import { formatAmount } from '@/lib/utils';
 
 type actionFunction = (stock: Stock, type: string) => React.ReactNode;
 
@@ -78,7 +79,7 @@ function StockTableInner({ action, header }: { action?: actionFunction; header?:
                       <TableCell>{stock[key].name}</TableCell>
                       <TableCell>{stock[key].lifetime === 'short' ? '1-5 hours' : '5-10 hours'}</TableCell>
                       <TableCell>
-                        ${stock[key].price} <span className="opacity-75">/ account</span>
+                        {formatAmount(stock[key].price)} <span className="opacity-75">/ account</span>
                       </TableCell>
                       <TableCell>{stock[key].pool_size ?? 0}</TableCell>
                       <TableCell className="py-4 text-right">{action?.(stock[key], key)}</TableCell>

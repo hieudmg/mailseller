@@ -1,12 +1,8 @@
 'use client';
 
-import * as React from 'react';
-import { useMemo } from 'react';
-import { Package, Settings, CreditCard, ShoppingBag, DollarSign, Trophy, User } from 'lucide-react';
+import { Package, CreditCard, ShoppingBag, DollarSign, Trophy, User } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
-import { useAuth } from '@/context/AuthContext';
 import {
   Sidebar,
   SidebarContent,
@@ -14,12 +10,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from '@/components/ui/sidebar';
 import Icon from '@/components/icon';
 import Link from 'next/link';
+import { ComponentProps } from 'react';
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const navMain = [
     {
       title: 'Profile',

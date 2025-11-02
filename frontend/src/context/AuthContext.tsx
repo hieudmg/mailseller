@@ -25,8 +25,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const refreshUser = useCallback(async () => {
-    setLoading(true);
+  const refreshUser = useCallback(async (withLoading = true) => {
+    if (withLoading) {
+      setLoading(true);
+    }
     try {
       const { data } = await api.getCurrentUser();
       if (data) {
@@ -37,13 +39,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       setUser(null);
     } finally {
-      setLoading(false);
+      if (withLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     // on mount, try to load current user
     void refreshUser();
+  }, [refreshUser]);
+
+  // refresh user every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void refreshUser(false);
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
   }, [refreshUser]);
 
   const login = useCallback(

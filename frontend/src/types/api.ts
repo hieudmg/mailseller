@@ -46,6 +46,7 @@ export type Tier = {
   custom_discount: number | null;
   final_discount: number;
   discount_source: 'custom' | 'tier';
+  credits: number;
 };
 
 export type InvoiceResponse = {

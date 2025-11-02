@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditsProvider, useCredits } from '@/context/CreditsContext';
+import { useCredits } from '@/context/CreditsContext';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import Header from '@/components/dashboard/header';
 import Image from 'next/image';
+import { formatAmount } from '@/lib/utils';
 
 const TIER_COLORS: Record<string, string> = {
   iron: 'bg-gray-400',
@@ -25,14 +26,6 @@ type Tier = {
 };
 
 export default function RankingPage() {
-  return (
-    <CreditsProvider>
-      <RankingPageContent />
-    </CreditsProvider>
-  );
-}
-
-export function RankingPageContent() {
   const { tierData, loading } = useCredits();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [tiersLoading, setTiersLoading] = useState(true);
@@ -82,7 +75,7 @@ export function RankingPageContent() {
             <div>
               <div className="text-3xl font-bold">{tierData.tier_name}</div>
               <div className="text-muted-foreground mt-1 text-sm">
-                ${tierData.deposit_amount.toFixed(2)} deposited in last 7 days
+                {formatAmount(tierData.deposit_amount)} deposited in last 7 days
               </div>
             </div>
             <Badge className={`px-4 py-2 text-lg`}>{tierData.final_discount * 100}% OFF</Badge>
@@ -102,12 +95,12 @@ export function RankingPageContent() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Progress to {tierData.next_tier.tier_name}</span>
                 <span className="font-medium">
-                  ${tierData.deposit_amount.toFixed(2)} / ${tierData.next_tier.required_deposit.toFixed(2)}
+                  {formatAmount(tierData.deposit_amount)} / {formatAmount(tierData.next_tier.required_deposit)}
                 </span>
               </div>
               <Progress value={progressToNextTier} className="h-2" />
               <p className="text-muted-foreground text-xs">
-                ${tierData.next_tier.remaining.toFixed(2)} more to unlock {tierData.next_tier.tier_discount * 100}%
+                {formatAmount(tierData.next_tier.remaining)} more to unlock {tierData.next_tier.tier_discount * 100}%
                 discount
               </p>
             </div>
@@ -158,7 +151,7 @@ export function RankingPageContent() {
                           </Badge>
                         )}
                       </div>
-                      <div className="text-muted-foreground text-sm">${tier.threshold.toFixed(2)}+ in 7 days</div>
+                      <div className="text-muted-foreground text-sm">{formatAmount(tier.threshold)}+ in 7 days</div>
                     </div>
                   </div>
                   <div className="text-right">

@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { StockTable } from '@/components/stock-table';
-import { ArrowDown, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Button } from '@/components/ui/button';
 
 export default function Home() {
   return (

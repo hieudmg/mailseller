@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef, ReactNode } from 'react';
+'use client';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef, ReactNode } from 'react';
 import { api } from '@/lib/api';
 
 export type TierData = {
@@ -38,6 +39,7 @@ export const CreditsProvider = ({ children }: { children: ReactNode }) => {
   const isInitialLoad = useRef(true);
 
   const getCreditsAndTier = useCallback(async () => {
+    console.log('Fetching credits and tier data...');
     // Only set loading on initial load, not on polling refreshes
     if (isInitialLoad.current) {
       setLoading(true);
@@ -45,14 +47,10 @@ export const CreditsProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       // Fetch credits and tier data in parallel
-      const [creditsResponse, tierResponse, tokenResponse] = await Promise.all([
-        api.getCredits(),
-        api.getTier(),
-        api.getToken(),
-      ]);
+      const [tierResponse, tokenResponse] = await Promise.all([api.getTier(), api.getToken()]);
 
-      const newCredits = creditsResponse?.data?.credits ?? 0;
       const newTierData = tierResponse?.data ?? null;
+      const newCredits = newTierData?.credits ?? 0;
 
       // Only update state if data actually changed
       setCredits((prev) => (prev !== newCredits ? newCredits : prev));

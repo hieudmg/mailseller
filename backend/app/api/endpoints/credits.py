@@ -349,7 +349,7 @@ async def get_my_tier(
 ):
     """
     Get current user's discount tier based on last 7 days deposits.
-    Returns tier information, deposit amount, and final discount.
+    Returns tier information, deposit amount, credits, and final discount.
     """
     from app.services.discount_service import DiscountService
 
@@ -364,6 +364,9 @@ async def get_my_tier(
         custom_discount if custom_discount is not None else tier_info["tier_discount"]
     )
 
+    # Get current credits
+    current_credits = memory_manager.get_user_credit(user.id)
+
     return {
         "tier_code": tier_info["tier_code"],
         "tier_name": tier_info["tier_name"],
@@ -373,4 +376,5 @@ async def get_my_tier(
         "custom_discount": custom_discount,
         "final_discount": final_discount,
         "discount_source": "custom" if custom_discount is not None else "tier",
+        "credits": current_credits,
     }

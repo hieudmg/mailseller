@@ -167,9 +167,3 @@ export const getTransactionTypeColor = (amount: number) => {
   if (amount > 0) return 'text-green-500';
   return 'text-gray-500';
 };
-
-export const formatAmount = (amount: number) => {
-  const absoluteAmount = Math.abs(amount);
-  const sign = amount > 0 ? '+' : '-';
-  return `${sign} $${absoluteAmount.toFixed(5)}`;
-};
