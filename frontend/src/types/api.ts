@@ -55,3 +55,30 @@ export type InvoiceResponse = {
   expires_at: number;
   order_id: string;
 };
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+
+export type QueryParam = {
+  name: string;
+  required: boolean;
+  description: string;
+};
+
+export type ErrorResponse = {
+  code: number;
+  description: string;
+  example: Record<string, unknown>;
+};
+
+export type ApiEndpointProps = {
+  method: HttpMethod;
+  path: string;
+  description: string;
+  queryParams?: QueryParam[];
+  requestExample: string;
+  response: Record<string, unknown>;
+  responseFields?: { name: string; description: string }[];
+  errors?: ErrorResponse[];
+  notes?: string[];
+  requiresAuth?: boolean;
+};

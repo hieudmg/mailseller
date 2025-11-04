@@ -20,22 +20,79 @@ bearer_security = HTTPBearer(auto_error=False)
 optional_cookie_user = fastapi_users.current_user(active=True, optional=True)
 
 
+async def get_authenticated_user(
+    token: Optional[str],
+    cookie_user: Optional[User],
+    db: AsyncSession,
+    fetch_user: bool = False
+) -> tuple[int, Optional[User]]:
+    """
+    Authenticate user via URL token parameter or cookie session.
+
+    Args:
+        token: Optional API token from query parameter
+        cookie_user: Optional user from cookie authentication
+        db: Database session
+        fetch_user: If True and using token auth, fetch full User object from database
+
+    Returns:
+        Tuple of (user_id, user_object)
+        - user_object is None if fetch_user=False and using token auth
+        - user_object is cookie_user if using cookie auth
+
+    Raises:
+        HTTPException: 401 if authentication fails or no auth provided
+    """
+    user_id = None
+    user = None
+
+    # Try URL parameter token first
+    if token:
+        user_id = memory_manager.get_user_id_by_token(token)
+        if fetch_user:
+            # Fetch user from database
+            result = await db.execute(select(User).where(User.id == user_id))
+            user = result.scalar_one_or_none()
+            if not user:
+                raise HTTPException(status_code=401, detail="Invalid token")
+    # Fall back to cookie authentication
+    elif cookie_user:
+        user_id = cookie_user.id
+        user = cookie_user
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required. Provide token parameter or login.")
+
+    return user_id, user
+
+
 class CreditResponse(BaseModel):
     credits: float
 
 
 @router.get("/credits", response_model=CreditResponse)
 async def get_my_credits(
-    user: User = Depends(get_user_from_token),
+    token: Optional[str] = None,
+    cookie_user: Optional[User] = Depends(optional_cookie_user),
     db: AsyncSession = Depends(get_async_session),
 ):
-    """Get current user's credit information."""
-    return await CreditService.get_user_credits(user.id, db)
+    """
+    Get current user's credit information.
+
+    Authentication: Supports both URL parameter token and cookie authentication.
+    - URL param: ?token=YOUR_API_TOKEN
+    - Cookie: Automatic for logged-in dashboard users
+    """
+    user_id, _ = await get_authenticated_user(token, cookie_user, db, fetch_user=False)
+    return await CreditService.get_user_credits(user_id, db)
 
 
 @router.get("/purchase")
 async def purchase_data(
-    amount: int, type: str, token: str, db: AsyncSession = Depends(get_async_session)
+    amount: int,
+    type: str,
+    token: Optional[str] = None,
+    cookie_user: Optional[User] = Depends(optional_cookie_user),
+    db: AsyncSession = Depends(get_async_session)
 ):
     """
     Purchase data items using credits.
@@ -43,8 +100,13 @@ async def purchase_data(
     Args:
         amount: Number of items to purchase (query parameter)
         type: Data type to purchase (query parameter)
-        token: User API token (query parameter)
+        token: User API token (query parameter, optional if using cookie auth)
+        cookie_user: User from cookie session (optional if using token)
         db: Database session
+
+    Authentication: Supports both URL parameter token and cookie authentication.
+    - URL param: ?token=YOUR_API_TOKEN
+    - Cookie: Automatic for logged-in dashboard users
 
     Returns:
         Purchase result with data items and remaining credits
@@ -60,11 +122,8 @@ async def purchase_data(
     if not type:
         raise HTTPException(status_code=400, detail="Data type is required")
 
-    if not token:
-        raise HTTPException(status_code=400, detail="Token is required")
-
-    # Authenticate user by token
-    user_id = memory_manager.get_user_id_by_token(token)
+    # Authenticate user (supports both token and cookie)
+    user_id, _ = await get_authenticated_user(token, cookie_user, db, fetch_user=False)
 
     # Determine which storage the type uses
     from app.services.type_service import TypeService
@@ -344,17 +403,24 @@ async def get_all_tiers():
 
 @router.get("/tier")
 async def get_my_tier(
-    user: User = Depends(current_active_user),
+    token: Optional[str] = None,
+    cookie_user: Optional[User] = Depends(optional_cookie_user),
     db: AsyncSession = Depends(get_async_session),
 ):
     """
     Get current user's discount tier based on last 7 days deposits.
     Returns tier information, deposit amount, credits, and final discount.
+
+    Authentication: Supports both URL parameter token and cookie authentication.
+    - URL param: ?token=YOUR_API_TOKEN
+    - Cookie: Automatic for logged-in dashboard users
     """
     from app.services.discount_service import DiscountService
 
+    user_id, user = await get_authenticated_user(token, cookie_user, db, fetch_user=True)
+
     # Calculate tier based on 7-day deposits
-    tier_info = await DiscountService.calculate_user_tier(user.id, db)
+    tier_info = await DiscountService.calculate_user_tier(user_id, db)
 
     # Get custom discount if set
     custom_discount = user.custom_discount
@@ -365,7 +431,7 @@ async def get_my_tier(
     )
 
     # Get current credits
-    current_credits = memory_manager.get_user_credit(user.id)
+    current_credits = memory_manager.get_user_credit(user_id)
 
     return {
         "tier_code": tier_info["tier_code"],

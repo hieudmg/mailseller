@@ -19,7 +19,7 @@ export function TopNavbar() {
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/api-docs', label: 'API docs' },
-    { href: '/tos', label: 'ToS' },
+    { href: '/terms', label: 'ToS' },
     { href: '/privacy', label: 'Privacy' },
     { href: '/telegram', label: 'Our Telegram' },
   ];
@@ -78,7 +78,7 @@ export function TopNavbar() {
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
-      <div className="container mx-auto flex h-14 items-center">
+      <div className="relative container mx-auto flex h-14 items-center">
         {/* Left zone: Icon */}
         <div className="mr-4">
           <Link href="/" className="flex items-center space-x-2">
