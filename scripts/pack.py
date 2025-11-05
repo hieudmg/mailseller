@@ -41,25 +41,9 @@ def get_git_commit_info():
             check=True,
         ).stdout.strip()
 
-        commit_author = subprocess.run(
-            ["git", "log", "-1", "--pretty=%an"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        commit_date = subprocess.run(
-            ["git", "log", "-1", "--pretty=%ai"],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
         return {
             "hash": commit_hash,
             "message": commit_message,
-            "author": commit_author,
-            "date": commit_date,
         }
     except subprocess.CalledProcessError as e:
         print(f"Error: Failed to get git commit info: {e}")
