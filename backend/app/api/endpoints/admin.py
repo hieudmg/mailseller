@@ -41,6 +41,11 @@ class SetDiscountRequest(BaseModel):
     discount: Optional[float] = None  # None to clear, 0.0-1.0 to set
 
 
+class SetPasswordRequest(BaseModel):
+    email: str
+    new_password: str
+
+
 @router.post("/credits/add")
 async def add_credits(
     request: AddCreditsRequest,
@@ -242,4 +247,52 @@ async def set_custom_discount(
             if request.discount is not None
             else "Custom discount cleared, using tier-based discount"
         ),
+    }
+
+
+@router.post("/password/set")
+async def set_user_password(
+    request: SetPasswordRequest,
+    db: AsyncSession = Depends(get_async_session),
+    _: str = Depends(verify_admin_token),
+):
+    """
+    Set a user's password (admin operation).
+    Requires ADMIN_TOKEN in Authorization header.
+
+    Args:
+        email: User email
+        new_password: New password for the user
+
+    Example:
+        {"email": "user@example.com", "new_password": "newpassword123"}
+    """
+    # Validate password
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters",
+        )
+
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Hash the new password
+    from fastapi_users.password import PasswordHelper
+
+    password_helper = PasswordHelper()
+    new_hashed_password = password_helper.hash(request.new_password)
+
+    # Update user password
+    user.hashed_password = new_hashed_password
+    await db.commit()
+
+    return {
+        "status": "success",
+        "email": request.email,
+        "message": f"Password updated successfully for {request.email}",
     }

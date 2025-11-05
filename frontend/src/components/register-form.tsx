@@ -5,8 +5,11 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { ReCaptcha, ReCaptchaRef } from '@/components/recaptcha';
+
+const RECAPTCHA_SITE_KEY = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '';
 
 export function RegisterForm({ className, ...props }: React.ComponentProps<'form'>) {
   const [email, setEmail] = useState('');
@@ -14,7 +17,18 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<'form
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const recaptchaRef = useRef<ReCaptchaRef>(null);
   const router = useRouter();
+
+  const handleRecaptchaVerify = useCallback((token: string) => {
+    setRecaptchaToken(token);
+  }, []);
+
+  const handleRecaptchaExpire = useCallback(() => {
+    setRecaptchaToken('');
+    setError('reCAPTCHA expired, please verify again');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,17 +39,28 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<'form
       return;
     }
 
+    if (RECAPTCHA_SITE_KEY && !recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification');
+      return;
+    }
+
     setIsLoading(true);
 
-    const { error } = await api.register(email, password);
+    const { error } = await api.register(email, password, recaptchaToken);
 
     if (error) {
       setError(error);
       setIsLoading(false);
+      // Reset reCAPTCHA on error so user can try again
+      if (RECAPTCHA_SITE_KEY && recaptchaRef.current) {
+        recaptchaRef.current.reset();
+        setRecaptchaToken('');
+      }
       return;
     }
 
-    router.push('/login');
+    // Redirect to login with success message
+    router.push('/login?registered=true');
   };
 
   return (
@@ -80,6 +105,16 @@ export function RegisterForm({ className, ...props }: React.ComponentProps<'form
             disabled={isLoading}
           />
         </div>
+        {RECAPTCHA_SITE_KEY && (
+          <div className="flex justify-center">
+            <ReCaptcha
+              ref={recaptchaRef}
+              siteKey={RECAPTCHA_SITE_KEY}
+              onVerify={handleRecaptchaVerify}
+              onExpire={handleRecaptchaExpire}
+            />
+          </div>
+        )}
         <Button type="submit" className="w-full" disabled={isLoading}>
           {isLoading ? 'Creating account...' : 'Sign up'}
         </Button>

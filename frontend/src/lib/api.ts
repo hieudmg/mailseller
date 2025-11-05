@@ -18,6 +18,15 @@ class ApiClient {
       });
 
       if (!response.ok) {
+        // Try to get error detail from response body
+        try {
+          const body = await response.json();
+          if (body.detail) {
+            return { error: body.detail };
+          }
+        } catch (e) {
+          // If parsing fails, fall through to default error message
+        }
         return { error: errorMessage };
       }
 
@@ -33,29 +42,33 @@ class ApiClient {
     }
   }
 
-  async login(email: string, password: string): Promise<ApiResponse<void>> {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-
+  async login(email: string, password: string, recaptchaToken?: string): Promise<ApiResponse<void>> {
     return this.request(
       '/account/login',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: email,
+          password,
+          recaptcha_token: recaptchaToken || '',
+        }),
       },
       'Invalid email or password',
     );
   }
 
-  async register(email: string, password: string): Promise<ApiResponse<void>> {
+  async register(email: string, password: string, recaptchaToken?: string): Promise<ApiResponse<void>> {
     return this.request(
       '/account/register',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          recaptcha_token: recaptchaToken || '',
+        }),
       },
       'Registration failed. Please try again.',
     );
@@ -67,6 +80,21 @@ class ApiClient {
 
   async getCurrentUser(): Promise<ApiResponse<{ email: string; id: number }>> {
     return this.request('/account/me');
+  }
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return this.request(
+      '/account/reset-password',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: oldPassword,
+          new_password: newPassword,
+        }),
+      },
+      'Failed to change password',
+    );
   }
 
   async getPoolSize(): Promise<ApiResponse<{ total: number; sizes: PoolSize }>> {

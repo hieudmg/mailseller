@@ -13,8 +13,8 @@ type ApiResponseVoid = { error?: string };
 type AuthContextType = {
   user: User;
   loading: boolean;
-  login: (email: string, password: string) => Promise<ApiResponseVoid>;
-  register: (email: string, password: string) => Promise<ApiResponseVoid>;
+  login: (email: string, password: string, recaptchaToken?: string) => Promise<ApiResponseVoid>;
+  register: (email: string, password: string, recaptchaToken?: string) => Promise<ApiResponseVoid>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -60,8 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
-      const resp = await api.login(email, password);
+    async (email: string, password: string, recaptchaToken?: string) => {
+      const resp = await api.login(email, password, recaptchaToken);
       if (!resp.error) {
         // successful login - refresh user
         await refreshUser();
@@ -72,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (email: string, password: string) => {
-      const resp = await api.register(email, password);
+    async (email: string, password: string, recaptchaToken?: string) => {
+      const resp = await api.register(email, password, recaptchaToken);
       if (!resp.error) {
         // try to refresh user (maybe auto-login after register)
         await refreshUser();

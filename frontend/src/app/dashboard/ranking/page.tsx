@@ -71,48 +71,65 @@ export default function RankingPage() {
       {/* Current Tier Card */}
       <Card className="border-2">
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-3xl font-bold">{tierData.tier_name}</div>
-              <div className="text-muted-foreground mt-1 text-sm">
-                {formatAmount(tierData.deposit_amount)} deposited in last 7 days
+          {tierData.custom_discount !== null ? (
+            /* Custom Discount View - No tier/progress shown */
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-3xl font-bold">Custom Discount</div>
+                  <div className="text-muted-foreground mt-1 text-sm">
+                    Special discount applied by admin
+                  </div>
+                </div>
+                <Badge className={`px-4 py-2 text-lg`}>{tierData.final_discount * 100}% OFF</Badge>
               </div>
-            </div>
-            <Badge className={`px-4 py-2 text-lg`}>{tierData.final_discount * 100}% OFF</Badge>
-          </div>
 
-          {tierData.custom_discount !== null && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">🎁 Custom Discount Active</p>
-              <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-                You have a custom {tierData.custom_discount * 100}% discount applied by an admin
-              </p>
-            </div>
-          )}
-
-          {tierData.next_tier && (
-            <div className="space-y-2 border-t pt-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Progress to {tierData.next_tier.tier_name}</span>
-                <span className="font-medium">
-                  {formatAmount(tierData.deposit_amount)} / {formatAmount(tierData.next_tier.required_deposit)}
-                </span>
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">🎁 Custom Discount Active</p>
+                <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                  You have a custom {tierData.custom_discount * 100}% discount applied by an admin. This overrides the
+                  tier-based discount system.
+                </p>
               </div>
-              <Progress value={progressToNextTier} className="h-2" />
-              <p className="text-muted-foreground text-xs">
-                {formatAmount(tierData.next_tier.remaining)} more to unlock {tierData.next_tier.tier_discount * 100}%
-                discount
-              </p>
-            </div>
-          )}
+            </>
+          ) : (
+            /* Normal Tier View - Show tier and progress */
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-3xl font-bold">{tierData.tier_name}</div>
+                  <div className="text-muted-foreground mt-1 text-sm">
+                    {formatAmount(tierData.deposit_amount)} deposited in last 7 days
+                  </div>
+                </div>
+                <Badge className={`px-4 py-2 text-lg`}>{tierData.final_discount * 100}% OFF</Badge>
+              </div>
 
-          {!tierData.next_tier && (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
-              <p className="text-sm font-medium text-green-900 dark:text-green-100">🏆 Maximum Tier Reached!</p>
-              <p className="mt-1 text-xs text-green-700 dark:text-green-300">
-                You have reached the highest tier available
-              </p>
-            </div>
+              {tierData.next_tier && (
+                <div className="space-y-2 border-t pt-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progress to {tierData.next_tier.tier_name}</span>
+                    <span className="font-medium">
+                      {formatAmount(tierData.deposit_amount)} / {formatAmount(tierData.next_tier.required_deposit)}
+                    </span>
+                  </div>
+                  <Progress value={progressToNextTier} className="h-2" />
+                  <p className="text-muted-foreground text-xs">
+                    {formatAmount(tierData.next_tier.remaining)} more to unlock {tierData.next_tier.tier_discount * 100}
+                    % discount
+                  </p>
+                </div>
+              )}
+
+              {!tierData.next_tier && (
+                <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950">
+                  <p className="text-sm font-medium text-green-900 dark:text-green-100">🏆 Maximum Tier Reached!</p>
+                  <p className="mt-1 text-xs text-green-700 dark:text-green-300">
+                    You have reached the highest tier available
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -126,7 +143,8 @@ export default function RankingPage() {
         <CardContent>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {tiers.map((tier) => {
-              const isCurrentTier = tier.code === tierData.tier_code;
+              // Don't highlight current tier if custom discount is set
+              const isCurrentTier = tierData.custom_discount === null && tier.code === tierData.tier_code;
               return (
                 <div
                   key={tier.code}
