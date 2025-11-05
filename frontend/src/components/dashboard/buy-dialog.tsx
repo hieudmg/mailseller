@@ -42,7 +42,7 @@ export default function BuyDialog({ trigger, stock, type }: BuyDialogProps) {
         encodeURIComponent(type) +
         (token ? '&token=' + encodeURIComponent(token) : ''),
     );
-  }, [buyQuantity, token]);
+  }, [buyQuantity, token, type]);
 
   return (
     <AlertDialog

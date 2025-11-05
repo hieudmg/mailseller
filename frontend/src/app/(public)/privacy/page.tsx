@@ -15,7 +15,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>Introduction</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add introduction content here]</p>
         </CardContent>
       </Card>
@@ -25,14 +25,14 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>1. Information We Collect</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
-          <h4 className="font-semibold text-foreground">1.1 Personal Information</h4>
+        <CardContent className="text-muted-foreground space-y-4">
+          <h4 className="text-foreground font-semibold">1.1 Personal Information</h4>
           <p>[Add personal information content here]</p>
 
-          <h4 className="mt-4 font-semibold text-foreground">1.2 Usage Data</h4>
+          <h4 className="text-foreground mt-4 font-semibold">1.2 Usage Data</h4>
           <p>[Add usage data content here]</p>
 
-          <h4 className="mt-4 font-semibold text-foreground">1.3 Payment Information</h4>
+          <h4 className="text-foreground mt-4 font-semibold">1.3 Payment Information</h4>
           <p>[Add payment information content here]</p>
         </CardContent>
       </Card>
@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>2. How We Use Your Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add how we use your information content here]</p>
         </CardContent>
       </Card>
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>3. Information Sharing and Disclosure</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add information sharing and disclosure content here]</p>
         </CardContent>
       </Card>
@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>4. Data Security</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add data security content here]</p>
         </CardContent>
       </Card>
@@ -72,7 +72,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>5. Data Retention</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add data retention content here]</p>
         </CardContent>
       </Card>
@@ -82,17 +82,17 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>6. Your Rights</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
-          <h4 className="font-semibold text-foreground">6.1 Access and Correction</h4>
+        <CardContent className="text-muted-foreground space-y-4">
+          <h4 className="text-foreground font-semibold">6.1 Access and Correction</h4>
           <p>[Add access and correction content here]</p>
 
-          <h4 className="mt-4 font-semibold text-foreground">6.2 Data Deletion</h4>
+          <h4 className="text-foreground mt-4 font-semibold">6.2 Data Deletion</h4>
           <p>[Add data deletion content here]</p>
 
-          <h4 className="mt-4 font-semibold text-foreground">6.3 Data Portability</h4>
+          <h4 className="text-foreground mt-4 font-semibold">6.3 Data Portability</h4>
           <p>[Add data portability content here]</p>
 
-          <h4 className="mt-4 font-semibold text-foreground">6.4 Opt-Out</h4>
+          <h4 className="text-foreground mt-4 font-semibold">6.4 Opt-Out</h4>
           <p>[Add opt-out content here]</p>
         </CardContent>
       </Card>
@@ -102,7 +102,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>7. Cookies and Tracking Technologies</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add cookies and tracking technologies content here]</p>
         </CardContent>
       </Card>
@@ -112,7 +112,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>8. Third-Party Services</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add third-party services content here]</p>
         </CardContent>
       </Card>
@@ -122,7 +122,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>9. International Data Transfers</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add international data transfers content here]</p>
         </CardContent>
       </Card>
@@ -132,8 +132,8 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>10. Children&apos;s Privacy</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
-          <p>[Add children's privacy content here]</p>
+        <CardContent className="text-muted-foreground space-y-4">
+          <p>[Add children&#39;s privacy content here]</p>
         </CardContent>
       </Card>
 
@@ -142,7 +142,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>11. Changes to This Privacy Policy</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add changes to privacy policy content here]</p>
         </CardContent>
       </Card>
@@ -152,7 +152,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>12. GDPR Compliance (EU Users)</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add GDPR compliance content here]</p>
         </CardContent>
       </Card>
@@ -162,7 +162,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>13. CCPA Compliance (California Residents)</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add CCPA compliance content here]</p>
         </CardContent>
       </Card>
@@ -172,7 +172,7 @@ export default function PrivacyPolicyPage() {
         <CardHeader>
           <CardTitle>14. Contact Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-muted-foreground">
+        <CardContent className="text-muted-foreground space-y-4">
           <p>[Add contact information content here]</p>
         </CardContent>
       </Card>
