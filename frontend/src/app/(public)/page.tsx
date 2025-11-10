@@ -21,10 +21,15 @@ export default function Home() {
             </h2>
             <h3>
               Get up to 20% discount on purchases!{' '}
-              <Link className="gradient-text" href="/dashboard/ranking">
+              <Link className="gradient-text whitespace-nowrap" href="/dashboard/ranking">
                 Learn More
               </Link>
             </h3>
+            <p className="mt-6 block text-left text-sm text-slate-400 md:text-center">
+              Each purchased account is exclusive and sold only once (No sharing). All accounts are created within the
+              last 1 hour and consistently verified before being offered to clients. Use IMAP, POP3 + residential proxy
+              for trusted mail
+            </p>
           </div>
         }
       />

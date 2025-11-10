@@ -7,6 +7,28 @@ import { formatAmount } from '@/lib/utils';
 
 type actionFunction = (stock: Stock, type: string) => React.ReactNode;
 
+function renderLifetime(lifetime: string) {
+  switch (lifetime) {
+    case 'short':
+      return '1-5 hours';
+    case 'long':
+    default:
+      return '6-12 months';
+  }
+}
+
+function renderName({ name, code }: { name: string; code: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <img src={`/mail/${code}.svg`} className="h-6 w-6" /> {name}
+    </div>
+  );
+}
+
+function renderProtocols(protocols?: string[]) {
+  return protocols?.join(', ');
+}
+
 function StockTableInner({ action, header }: { action?: actionFunction; header?: React.ReactNode }) {
   const { stock } = useStock();
 
@@ -38,13 +60,17 @@ function StockTableInner({ action, header }: { action?: actionFunction; header?:
                 stock?.[key] && (
                   <div key={key} className="rounded-lg border p-4">
                     <div className="mb-2 flex items-center justify-between">
-                      <h2 className="text-lg font-semibold">{stock[key].name}</h2>
+                      <h2 className="text-lg font-semibold">{renderName(stock[key])}</h2>
                       <div>{action?.(stock[key], key)}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="text-muted-foreground text-sm">Lifetime:</div>
-                        <div>{stock[key].lifetime === 'short' ? '1-5 hours' : '5-10 hours'}</div>
+                        <div>{renderLifetime(stock[key].lifetime)}</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground text-sm">Enable:</div>
+                        <div>{renderProtocols(stock[key].protocols)}</div>
                       </div>
                       <div>
                         <div className="text-muted-foreground text-sm">Price:</div>
@@ -66,6 +92,7 @@ function StockTableInner({ action, header }: { action?: actionFunction; header?:
               <TableRow>
                 <TableHead className="font-bold opacity-75">Products</TableHead>
                 <TableHead className="font-bold opacity-75">Lifetime</TableHead>
+                <TableHead className="font-bold opacity-75">Enable</TableHead>
                 <TableHead className="font-bold opacity-75">Price</TableHead>
                 <TableHead className="font-bold opacity-75">Stock</TableHead>
                 <TableHead></TableHead>
@@ -76,8 +103,9 @@ function StockTableInner({ action, header }: { action?: actionFunction; header?:
                 (key) =>
                   stock?.[key] && (
                     <TableRow key={key}>
-                      <TableCell>{stock[key].name}</TableCell>
-                      <TableCell>{stock[key].lifetime === 'short' ? '1-5 hours' : '5-10 hours'}</TableCell>
+                      <TableCell>{renderName(stock[key])}</TableCell>
+                      <TableCell>{renderLifetime(stock[key].lifetime)}</TableCell>
+                      <TableCell>{renderProtocols(stock[key].protocols)}</TableCell>
                       <TableCell>
                         {formatAmount(stock[key].price)} <span className="opacity-75">/ account</span>
                       </TableCell>

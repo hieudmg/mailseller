@@ -41,8 +41,10 @@ async def get_pool_size(db: AsyncSession = Depends(get_async_session)):
             type_name: {
                 "pool_size": info["pool_size"],
                 "price": info["config"]["price"],
+                "code": info["config"]["code"],
                 "name": info["config"]["name"],
                 "lifetime": info["config"]["lifetime"],
+                "protocols": info["config"]["protocols"],
             }
             for type_name, info in all_types_with_sizes.items()
         }

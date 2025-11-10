@@ -4,10 +4,12 @@ export type ApiResponse<T> = {
 };
 
 export type Stock = {
+  code: string;
   pool_size: number;
   price: number;
   name: string;
   lifetime: string;
+  protocols: string[];
 };
 
 export type PoolSize = {

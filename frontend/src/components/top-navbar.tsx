@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import Icon from '@/components/icon';
 import { Spinner } from '@/components/ui/spinner';
+import { TelegramLink } from '@/components/telegram-link';
 
 export function TopNavbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,7 +22,7 @@ export function TopNavbar() {
     { href: '/api-docs', label: 'API docs' },
     { href: '/terms', label: 'ToS' },
     { href: '/privacy', label: 'Privacy' },
-    { href: '/telegram', label: 'Our Telegram' },
+    { href: '/telegram', label: <TelegramLink>Our Telegram</TelegramLink> },
   ];
 
   const handleLogout = async () => {
