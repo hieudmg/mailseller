@@ -8,10 +8,16 @@ It runs these commands concurrently:
 import subprocess
 import sys
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+# Read executables from environment variables, fallback to defaults
+NPM_EXE = os.environ.get('NPM_EXE', 'npm')
+PYTHON_EXE = os.environ.get('PYTHON_EXE', 'python3')
 
 # Start backend server
 backend_cmd = [
-    sys.executable,
+    PYTHON_EXE,
     "-m",
     "uvicorn",
     "app.main:app",
@@ -26,7 +32,7 @@ backend_proc = subprocess.Popen(
 )
 
 # Start frontend server
-frontend_cmd = ["npm", "run", "start", "--", "--port", "3333"]
+frontend_cmd = [NPM_EXE, "run", "start", "--", "--port", "3333"]
 frontend_proc = subprocess.Popen(
     frontend_cmd,
     cwd=os.path.join(os.path.dirname(__file__), "frontend"),

@@ -8,7 +8,14 @@ import zipfile
 import json
 import subprocess
 import sys
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+# Read executables from environment variables, fallback to defaults
+NPM_EXE = os.environ.get('NPM_EXE', 'npm')
+PYTHON_EXE = os.environ.get('PYTHON_EXE', 'python3')
 
 
 def find_latest_archive(builds_dir):
@@ -105,22 +112,22 @@ def run_deployment_steps(target_dir):
 
     steps = [
         {
-            'cmd': ['pip', 'install', '-r', 'requirements.txt'],
+            'cmd': [PYTHON_EXE, '-m', 'pip', 'install', '-r', 'requirements.txt'],
             'cwd': backend_dir,
             'description': 'Installing backend dependencies'
         },
         {
-            'cmd': ['alembic', 'upgrade', 'head'],
+            'cmd': [PYTHON_EXE, '-m', 'alembic', 'upgrade', 'head'],
             'cwd': backend_dir,
             'description': 'Running database migrations'
         },
         {
-            'cmd': ['npm', 'install'],
+            'cmd': [NPM_EXE, 'install'],
             'cwd': frontend_dir,
             'description': 'Installing frontend dependencies'
         },
         {
-            'cmd': ['npm', 'run', 'build'],
+            'cmd': [NPM_EXE, 'run', 'build'],
             'cwd': frontend_dir,
             'description': 'Building frontend'
         }
