@@ -22,7 +22,15 @@ export function TopNavbar() {
     { href: '/api-docs', label: 'API docs' },
     { href: '/terms', label: 'ToS' },
     { href: '/privacy', label: 'Privacy' },
-    { href: '/telegram', label: <TelegramLink>Our Telegram</TelegramLink> },
+    {
+      href: '/telegram',
+      label: (
+        <TelegramLink className="hover:text-foreground/80 text-foreground/60 transition-colors">
+          Our Telegram
+        </TelegramLink>
+      ),
+      isComponent: true,
+    },
   ];
 
   const handleLogout = async () => {
@@ -38,7 +46,7 @@ export function TopNavbar() {
     if (isLoggedIn) {
       return (
         <>
-          <div className="truncate text-sm">
+          <div className="truncate pl-4 text-sm">
             <div>Welcome,</div>
             <div>{userEmail}</div>
           </div>
@@ -89,15 +97,19 @@ export function TopNavbar() {
 
         {/* Center zone: Navigation links (hidden on mobile) */}
         <nav className="hidden flex-1 items-center justify-center space-x-6 text-sm font-medium md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="hover:text-foreground/80 text-foreground/60 transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) =>
+            link?.isComponent ? (
+              link.label
+            ) : (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hover:text-foreground/80 text-foreground/60 transition-colors"
+              >
+                {link.label}
+              </Link>
+            ),
+          )}
         </nav>
 
         {/* Right zone: Login and Register (hidden on mobile) */}
